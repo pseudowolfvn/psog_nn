@@ -1,0 +1,41 @@
+% -------------------------------------------------------------------------
+% Copyright © 2018, Michigan State University. All rights reserved.
+% -------------------------------------------------------------------------
+%
+% This work is licensed under a Creative Commons Attribution-NonCommercial
+% -ShareAlike 4.0 International License. See license conditions at:
+% https://creativecommons.org/licenses/by-nc-sa/4.0/
+%
+% -------------------------------------------------------------------------
+% Created by: Raimondas Zemblys (raimondas.zemblys@gmail.com)
+%
+
+### Prepare ###
+To run this script install Blender first. Tested with Blender 2.76 on linux.
+
+The original paper and code for the Blender simulator can be found at:
+https://www.cl.cam.ac.uk/research/rainbow/projects/eyerender/
+Download an eye/head model and copy it to this directory.
+
+### Run simulation ###
+1. Prepare csv file (tab delimited) with the following format:
+
+posx		horizontal gaze direction (in degrees)
+posy		vertical gaze direction (in degrees)
+movCam_H	camera offset in horizontal direction (in mm)
+movCam_D	camera offset along depth dimension (in mm; not tested)
+movCam_V	camera offset in vertical direction (in mm)
+pupil_size	pupil diameter in mm
+
+Place csv file in folder with the same name as prepared file. 
+See etdata/em_sign_convention for an example.
+
+2. Edit config.json if required. Only the setting 'eye' is used here
+
+3. Check designs/jazz.json. It controls the  placement of the components (camera, sun, IR lights) 
+
+4. Activate your python environment and run:
+python run_sim.py --root DATA_FOLDER --source EXPERIMENT_FOLDER --design DESIGN_NAME
+For example: python run_sim.py --root 'etdata' --source 'em_sign_convention' --design 'jazz'
+
+5. Check generated images as it was reported previously that sometimes Blender rendering fails and generates empty images. Use computer with a GPU, otherwise it will take for ever to generate files

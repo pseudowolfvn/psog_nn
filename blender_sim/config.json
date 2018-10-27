@@ -1,0 +1,18 @@
+{
+  "calibration": {
+    "n_points": [3, 5],
+    "extent": [20, 16],
+    "sensor_movement":{
+      "movCam_H": [-2.0, 2.0],
+      "movCam_V": [-2.0, 2.0],
+      "movCam_D": [0.0, 0.0],
+      "step": 0.5
+    }
+  },
+  "eye": {
+    "eye_closedness": 0.0,
+    "eye_radius": 12,
+    "pupil_radius": 2,
+    "iris": "dark"
+  }
+}

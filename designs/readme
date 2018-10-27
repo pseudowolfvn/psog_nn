@@ -1,0 +1,35 @@
+Sensor placement design files are in json format:
+Example:
+{
+    "design": 
+    [
+        ["gaussian", [60, 60], [-54, -32]],
+        ["gaussian", [60, 60], [49, -32]],
+        ["gaussian", [60, 60], [49, 28]],
+        ["gaussian", [60, 60], [-54, 28]]
+    ],
+    "output":
+    [
+        [1, -1, -1, 1],
+        [1, 1, -1, -1]
+    ],
+    "coord_space": "cartesian"
+}
+
+Each sensor is described using following format:
+[type, [sizex, sizey], [posx, posy]]
+where:
+type:	type of sensor. Currently only "gaussian" is suported
+sizex:	radius of gaussian kernel, in pixels
+sizey:	not used
+posx:	sensor offset in horizontal direction (pixels from screen center) 
+posy:	sensor offset in vertical direction (pixels from screen center) 
+
+In case of "coord_space": "polar"
+sizex:	not used
+sizey:	not used
+posx:	radius of gaussian kernel, in pixels
+posy:	angle in degrees
+
+"output" controls how raw sensor responses are combined. For example [1, 1, -1, -1] means adding raw responses of first two sensors and substracting responses of the rest two. Can be left empty if only raw responses are used.
+
