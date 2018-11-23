@@ -18,12 +18,19 @@ from tqdm import tqdm
 
 #%% functions and constants
 
-def run_feature_extraction(exp_path, sensor, fpath_sr=None):
+def run_feature_extraction(exp_path, sensor, fpath_sr=None, img_mode='blender'):
     '''Runs feature extraction aka calculates sensor responses
 
     '''
     exp_dir, _ = os.path.split(exp_path)
-    spath_tmpl = '{:06d}_{:+.2f}_{:+.2f}_{:+.2f}_{:+08.4f}_{:+08.4f}.png'
+    # workaround for UnityEyes
+    if img_mode == 'blender':
+        spath_tmpl = '{:06d}_{:+.2f}_{:+.2f}_{:+.2f}_{:+08.4f}_{:+08.4f}.png'
+    elif img_mode == 'eet':
+        spath_tmpl = '{:06d}_{:+.2f}_{:+.2f}_{:+.2f}_{:+08.4f}_{:+08.4f}.jpg'
+    elif img_mode == 'unityeyes':
+        spath_tmpl = '{:06d}_{:+.2f}_{:+.2f}_{:+.2f}_{:.4f}_{:.4f}.jpg'
+
 
     #read meta data
     data_exp = pd.read_csv(exp_path, sep='\t')
@@ -38,6 +45,7 @@ def run_feature_extraction(exp_path, sensor, fpath_sr=None):
         #get file name
         fname = spath_tmpl.format(n ,*(_movCam+_pt))
         if not os.path.exists('%s/%s' % (exp_dir, fname)):
+            print(fname + ' doesn\'t exist!')
             continue
         img = Image.open('%s/%s' % (exp_dir, fname))
         img = np.array(img.convert('L'))/255.
@@ -203,6 +211,7 @@ class Sensor():
                     ax[1].add_patch(patches.Circle(_sct, _w/4, fill=False))
                     ax[1].text(*_sct, s=n, ha='center', va='center', color='red')
                 ax[1].imshow(img_sr)
+                plt.show()
             if plot==2:
                 fig = plt.figure(figsize=[3.2, 2.8])
                 ax = plt.Axes(fig, [0., 0., 1., 1.])
@@ -224,6 +233,7 @@ class Sensor():
 
                     #custom plot for ligaze
 #                    plt.gca().add_patch(patches.Circle(_sct, 5., fill=False))
+                plt.show()
 
 
         return output, (scs, img_patches, img_patches_f)
