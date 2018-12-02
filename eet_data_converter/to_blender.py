@@ -6,10 +6,6 @@ from PIL import Image
 from eyelink_data_converter.to_blender import gen_sensor_shifts
 
 
-def skip_pc(x, y):
-    return x < 181 or x > 459 or y < 141 or y > 207
-
-
 def rename_to_blender(data):
     blender_data = data.rename(index=str, columns={
         'GazePointXLeft': 'posx',
@@ -28,7 +24,7 @@ def rename_to_blender(data):
 
 
 def shift_mm_to_pix(sh):
-    return round(sh / 0.5) * 5
+    return round(sh / 0.5) * 4
 
 
 def get_img_name(ind, data):
@@ -37,12 +33,14 @@ def get_img_name(ind, data):
     return tmpl.format(ind, smh, 0., smv, posx, posy)
 
 
-def get_shifted_crop(img, center, data):
+def get_shifted_crop(img, center, head_mov, data):
     smh, smv = data[['smh', 'smv']]
     x, y = center
-    x += shift_mm_to_pix(smh)
-    y += shift_mm_to_pix(smv)
+    x += shift_mm_to_pix(smh) + head_mov[0]
+    y += shift_mm_to_pix(smv) + head_mov[1]
     w, h = 320, 240
+    if x + w // 2 > 640 or y + h // 2 > 348:
+        print('crop out of the range!')
     return img.crop((x - w//2, y - h//2, x + w//2, y + h//2))
 
 
@@ -50,23 +48,20 @@ def get_shifted_crop(img, center, data):
 EET_DATA_ROOT = 'D:\\DmytroKatrychuk\\dev\\research\\dataset\\Google project recordings\\Heatmaps_01_S_S{:03d}_R04_SHVSS3{:d}_BW_ML_120Hz\\'
 
 def convert_to_blender():
-    for subj in range(1, 23 + 1):
+    for subj in range(23, 23 + 1):
         subj_root = EET_DATA_ROOT.format(subj, 2 if subj < 11 else 4)
 
         print("Working dir: " + subj_root)
 
         input_dir = os.path.join(subj_root, 'images')
-        output_dir = os.path.join(subj_root, 'images_pc_centered_shifted')
+        output_dir = os.path.join(subj_root, 'images_nn')
 
         if not os.path.exists(output_dir):
             os.mkdir(output_dir)
 
         with open(os.path.join(input_dir, "_pc.txt")) as f:
-            line = f.readline()
-            cr_x, cr_y = map(int, line.split(' '))
-            if skip_pc(cr_x, cr_y):
-                print('skip ' + subj_root)
-                continue
+           line = f.readline()
+           pc_y, pc_x = map(int, line.split(' '))
         
         data_path = 'DOT-R22.tsv'
         for filename in os.listdir(subj_root):
@@ -85,18 +80,50 @@ def convert_to_blender():
             , sep='\t', index=False)
 
         n_samples = blender_data.shape[0]
-        ind = 0
-        for filename in os.listdir(input_dir):
-            if 'NaN' in filename:
+        with open(os.path.join(input_dir, 'head_mov.txt'), 'r') as head_mov_file:
+            head_mov_data =  [tuple(map(int, line.split(' ')))
+                for line in head_mov_file.readlines()]
+        img_ind = 0
+        data_ind = 0
+        head_data_ind = 0
+        m = 0
+        for x, y in head_mov_data:
+            m = max(m, y)
+        print(348 - 120 - 16 - 1 - m)
+        while True:
+            img_name = str(img_ind) + '.jpg'
+            img_nan_name = str(img_ind) + '_NaN.jpg'
+            if os.path.exists(os.path.join(input_dir, img_nan_name)):
+                img_ind += 1
                 continue
-            if ind >= n_samples:
+            
+            fullname = os.path.join(input_dir, img_name)
+
+            if not os.path.exists(fullname):
+                print(fullname, ' doesn\'t exist')
                 break
-            img = Image.open(os.path.join(input_dir, filename))
-            sample = blender_data.iloc[ind]
-            img_name = get_img_name(ind, sample)
-            img = get_shifted_crop(img, (cr_x, cr_y), sample)
+
+            if data_ind >= n_samples:
+                print(data_ind, ' raw doesn\'t exist in csv')
+                break
+
+            if head_data_ind >= len(head_mov_data):
+                 print(head_data_ind, ' raw doesn\'t exist in head_mov file')
+                 break
+
+
+            img = Image.open(fullname)
+            sample = blender_data.iloc[data_ind]
+            img_name = get_img_name(img_ind, sample)
+            head_mov = head_mov_data[head_data_ind]
+            img = get_shifted_crop(img, (pc_x, pc_y), head_mov, sample)
             img.save(os.path.join(output_dir, img_name))
-            ind += 1
+            
+            img_ind += 1
+            data_ind += 1
+            head_data_ind += 1
+        
+        head_mov_file.close()
         break
 
 if __name__ == "__main__":

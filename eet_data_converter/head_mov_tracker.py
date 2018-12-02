@@ -104,22 +104,23 @@ def kernel_response(img, x, y):
 EET_DATA_ROOT = 'D:\\DmytroKatrychuk\\dev\\research\\dataset\\Google project recordings\\Heatmaps_01_S_S{:03d}_R04_SHVSS3{:d}_BW_ML_120Hz\\'
 
 if __name__ == "__main__":
-    for subj in range(23, 23 + 1):
+    for subj in range(8, 9 + 1):
         subj_root = EET_DATA_ROOT.format(subj, 2 if subj < 11 else 4)
 
         print("Working dir: " + subj_root)
 
-        input_dir = os.path.join(subj_root, 'images')
+        input_dir = os.path.join(subj_root, 'vog_cnn')
 
         with open(os.path.join(input_dir, "_mc.txt")) as f:
             line = f.readline()
-            mark_x, mark_y = map(int, line.split(' '))
+            start_x, start_y = map(int, line.split(' '))
+            mark_x = start_x
+            mark_y = start_y
             mark_pattern = None
 
-        prev_img = None
-        ind = 0
+        head_mov_file = open(os.path.join(input_dir, "head_mov.txt"), 'w')
+
         for filename in os.listdir(input_dir):
-            ind += 1
             if not filename.endswith('.jpg'):
                 continue
 
@@ -129,24 +130,12 @@ if __name__ == "__main__":
             mark_x, mark_y = tracker_marker_eet(sk_img, mark_x, mark_y, mark_pattern)
 
             img = cv2.imread(os.path.join(input_dir, filename), cv2.IMREAD_GRAYSCALE)
-            #fig, ax = plt.subplots()
+            print(start_x - mark_x, start_y - mark_y, file=head_mov_file)
+            
+            #cv2.circle(img, (mark_y, mark_x), 3, (255,0,255), 2)
+            #cv2.imshow("eye", img)
+            #if cv2.waitKey(1) == ord('q'):
+            #    continue
+            #    break
 
-            # ax.plot(coords_subpix[:, 1], coords_subpix[:, 0], '+r', markersize=15)
-            # ax.plot(min_y, min_x, '+r', markersize=15)
-            #prev_mark = np.array([[mark_x, mark_y]], dtype=np.float32)
-
-            #p0, st, err = cv2.calcOpticalFlowPyrLK(prev_img, img, prev_mark, None)
-            #mark_x, mark_y = p0[0]
-            print(ind, mark_x, mark_y)
-            cv2.circle(img, (mark_y, mark_x), 3, (255,0,255), 2)
-            cv2.imshow("eye", img)
-            if cv2.waitKey(1) == ord('q'):
-                continue
-                break
-
-            prev_img = img.copy()
-
-            #plt.imshow(img)
-            #plt.pause(0.1)
-            #plt.draw()
 
