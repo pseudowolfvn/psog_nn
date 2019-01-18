@@ -31,7 +31,6 @@ def calculate_blender_sensor_outputs(root, exp=None, img_ext='.png', recalc=Fals
 
 def calculate_eet_sensor_outputs(root, img_ext='.jpg', recalc=False):
     design_path = 'designs\{}.json'.format(DESIGN)
-    print(design_path)
     with open(design_path, 'r') as f:
         sensor = Sensor(json.load(f))
 
@@ -39,7 +38,7 @@ def calculate_eet_sensor_outputs(root, img_ext='.jpg', recalc=False):
         if not os.path.isdir(os.path.join(root, dirname)):
             continue
         csv_name = int(dirname.split('_')[3][1:])
-        exp_path = os.path.join(root, dirname, 'images_centered_shifted', str(csv_name) + '.csv')
+        exp_path = os.path.join(root, dirname, 'images_nn_blender', str(csv_name) + '.csv')
         if not os.path.exists(exp_path):
             continue
         fpath_sr = exp_path.replace('.csv', '_%s.csv'%DESIGN)
@@ -49,7 +48,7 @@ def calculate_eet_sensor_outputs(root, img_ext='.jpg', recalc=False):
             continue
         print(fpath_sr)
         print(exp_path)
-        run_feature_extraction(exp_path, sensor, fpath_sr=fpath_sr, img_mode='eet')
+        run_feature_extraction(exp_path, sensor, image_center_offset=[0, 20], fpath_sr=fpath_sr, img_mode='eet')
 
 
 BLENDER_DATA_ROOT = r'.\eyelink_data_converter\blender_data'
@@ -68,10 +67,12 @@ if __name__ == '__main__':
         design_path = 'designs\{}.json'.format(DESIGN)
         with open(design_path, 'r') as f:
             sensor = Sensor(json.load(f))
-        imgs_path = os.path.join(EET_DATA_ROOT, 'images_centered_shifted')
+        imgs_path = os.path.join(EET_DATA_ROOT
+            , 'Heatmaps_01_S_S019_R04_SHVSS34_BW_ML_120Hz', 'images_nn_blender')
         for filename in os.listdir(imgs_path):
             img_path = os.path.join(imgs_path, filename)
+            img_path = os.path.join(imgs_path, '000040_+0.00_+0.00_+0.00_+00.0371_-00.4331.jpg')
             img = Image.open(img_path)
             img = np.array(img.convert('L'))/255.
-            sensor.getSR(img, plot=1)
+            sensor.getSR(img, image_center_offset=[0,20], plot=1)
             break

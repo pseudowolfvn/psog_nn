@@ -1,6 +1,13 @@
+from numpy.random import seed
+seed(1)
+from tensorflow import set_random_seed
+set_random_seed(2)
+
+
 import json
 import os
 import time
+import xml.etree.ElementTree as ET
 
 from keras import backend as K
 from keras.callbacks import EarlyStopping
@@ -86,7 +93,8 @@ def get_test_data(test_exp, filter_data=False):
 def get_general_data(train_subjs, test_subjs, mode):
     X_train, y_train = get_train_data(train_subjs)
     X_test, y_test = get_test_data(test_subjs)
-    X_train, X_test = normalize(X_train, X_test, test_subjs, False, mode)
+    # TODO: change True back to False
+    X_train, X_test = normalize(X_train, X_test, test_subjs, True, mode)
 
     # train_val_split
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
@@ -177,14 +185,22 @@ def calc_acc(y_gt, y_pred):
     err_test = y_gt - y_pred
     return np.mean(np.hypot(err_test[:,0], err_test[:,1]))
 
-def keras_train_and_save(train_subjs, test_subjs, params):
+def keras_train_and_save(train_subjs, test_subjs, params, load=False):
     X_train, X_val, X_test, y_train, y_val, y_test = \
         get_general_data(train_subjs, test_subjs, mode=get_mode(params))
 
-    model = train_keras_model(X_train, y_train, *params, X_val, y_val, 2000)
-    model.summary()
-    model.save(get_model_name(test_subjs, params))
-    print('Keras model saved')
+    model_name = get_model_name(test_subjs, params)
+    if load and os.path.exists(model_name):
+        print('Model ' + model_name + ' already exists')
+        model = load_model(model_name)
+        model.summary()
+        print('Model ' + model_name + ' loaded')
+    else:
+        model = train_keras_model(X_train, y_train, *params, X_val, y_val, 2000)
+        model.summary()
+        model.save(model_name)
+        print('Model ' + model_name + ' saved')
+    
     print('Train acc: ', calc_acc(y_train, model.predict(X_train)))
     print('Test acc: ', calc_acc(y_test, model.predict(X_test)))
 
@@ -231,7 +247,7 @@ def keras_load_and_finetune_fc(test_subjs, subj, params):
         , patience=50, mode='auto', restore_best_weights=True)
 
     fit_time = time.time()
-    model.fit(X_train, y_train, nb_epoch=1000, batch_size=200
+    model.fit(X_train, y_train, nb_epoch=1000, batch_size=2000
             , validation_data=(X_val, y_val), verbose=1
             , callbacks=[early_stopping])
     fit_time = time.time() - fit_time
@@ -244,11 +260,12 @@ def keras_load_and_finetune_fc(test_subjs, subj, params):
 
 
 def keras_train_from_scratch(subj, params):
+    # TODO: change True back to False
     X_train, X_val, X_test, y_train, y_val, y_test = \
-        get_specific_data(subj, subj, False, mode=get_mode(params))
+        get_specific_data(subj, subj, True, mode=get_mode(params))
 
     fit_time = time.time()
-    model = train_keras_model(X_train, y_train, *params, X_val, y_val)
+    model = train_keras_model(X_train, y_train, *params, X_val, y_val, 2000)
     fit_time = time.time() - fit_time
     
     print('Keras model trained')
@@ -261,7 +278,7 @@ def keras_train_from_scratch(subj, params):
 
 def test_finetuning(test_subjs, params):
     mode = get_mode(params)
-    REPS = 10
+    REPS = 1
     data = {'subjs': test_subjs}
     for subj in test_subjs:
         ft = np.zeros((REPS))
@@ -271,10 +288,10 @@ def test_finetuning(test_subjs, params):
         scr = np.zeros((REPS))
         scr_time = np.zeros((REPS))
         
-        for i in range(REPS):
-            _, acc, t = keras_load_and_finetune(test_subjs, subj, params)
-            ft[i] = acc
-            ft_time[i] = t
+        # for i in range(REPS):
+        #     _, acc, t = keras_load_and_finetune(test_subjs, subj, params)
+        #     ft[i] = acc
+        #     ft_time[i] = t
         data[subj] = {}
         data[subj]['ft'] = {}
         data[subj]['ft']['data'] = ft
@@ -300,7 +317,7 @@ def test_finetuning(test_subjs, params):
     print(data)
     joblib.dump(data, os.path.join(
             MODULE_PREFIX,
-            'finetune_' + str(mode) + '_' + str(params) + '_' + str(test_subjs) + '.pkl'
+            'time_' + str(mode) + '_' + str(params) + '_' + str(test_subjs) + '.pkl'
         )
     )
 
@@ -353,19 +370,114 @@ def split_test_from_train(test_exp):
 def cross_testing(test_subjs, params):
     train_subjs, test_subjs = split_test_from_train(test_subjs)
     print('Train on: ', train_subjs, 'Test on: ', test_subjs)
-    keras_train_and_save(train_subjs, test_subjs, params)
+    keras_train_and_save(train_subjs, test_subjs, params, load=True)
     test_finetuning(test_subjs, params)
 
-if __name__ == "__main__":
-    BEST_MLP_MODEL = (0, 0, 4, 96)
-    BEST_CNN_MODEL = (1, 4, 3, 96)
+def deg_to_pix(deg):
+    posx, posy = deg
+    dist_mm = 500.
+    w_mm = 374.
+    h_mm = 300.
+    w_pix = 1280
+    h_pix = 1024
+    conv = lambda data, pix, mm, dist: \
+        int(round(np.tan(data / 180. * np.pi) * dist * pix/mm + pix/2.))
+    return conv(posx, w_pix, w_mm, dist_mm), \
+        conv(-posy, h_pix, h_mm, dist_mm)
 
-    cross_testing(['1', '2', '3', '4'], BEST_MLP_MODEL)
-    cross_testing(['5', '6', '7', '8'], BEST_MLP_MODEL)
-    cross_testing(['10', '11', '12', '13'], BEST_MLP_MODEL)
-    cross_testing(['14', '15', '16', '17'], BEST_MLP_MODEL)
-    cross_testing(['18', '19', '20'], BEST_MLP_MODEL)
-    cross_testing(['21', '22', '23'], BEST_MLP_MODEL)
+def calib_testing(subj, params):
+    EET_DATA_ROOT = 'D:\\DmytroKatrychuk\\dev\\research\\dataset\\Google project recordings\\Heatmaps_01_S_S{:03d}_R04_SHVSS3{:d}_BW_ML_120Hz\\'
+    BLENDER_DATA_ROOT = 'D:\\DmytroKatrychuk\\dev\\research\\psog_nn\\eet_data_converter\\blender_data\\{}\\{}_grid15.csv'
+
+    subj_root = EET_DATA_ROOT.format(subj, 2 if subj < 11 else 4)
+
+    subj = str(subj)
+
+    data_path = 'DOT-R19.xml'
+    for filename in os.listdir(subj_root):
+        if filename.endswith('.xml'):
+            data_path = filename
+
+    tree = ET.parse(os.path.join(subj_root, data_path))
+    root = tree.getroot()
+
+    stimuli_pos = []
+    for position in root.iter('Position'):
+        x = int(position.find('X').text)
+        y = int(position.find('Y').text)
+        stimuli_pos.append((x, y))
+
+    calib_pos = list(set(stimuli_pos))
+    calib_pos.sort()
+    calib_pos = [
+        calib_pos[0],
+        calib_pos[2],
+        calib_pos[4],
+        calib_pos[8],
+        calib_pos[10],
+        calib_pos[12],
+        calib_pos[16],
+        calib_pos[18],
+        calib_pos[20]
+    ]
+    # stimuli_pos = list(set(stimuli_pos))
+    # stimuli_pos.sort()
+
+    stimuli_pos = np.array(stimuli_pos)
+
+    X_train, y_train = get_train_data([subj])
+
+    train_ind = []
+    test_ind = []
+    for ind, pos in enumerate(y_train):
+        posx, posy = deg_to_pix(pos)
+        calib_point = False
+        for calib in calib_pos:
+            x, y = calib
+            dist = np.hypot(posx - x, posy - y)
+            if dist < 35.:
+                calib_point = True
+                break
+        if calib_point:
+            train_ind.extend([ind])
+        else:
+            test_ind.extend([ind])
+    
+    X_test = X_train[test_ind]
+    y_test = y_train[test_ind]
+    
+    X_train = X_train[train_ind]
+    y_train = y_train[train_ind]
+
+    X_train, X_test = normalize(X_train, X_test, subj, False, 'cnn')
+
+    X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.2, random_state=42)
+
+    X_train = X_train.reshape((X_train.shape[0], 3, 5, 1))
+    X_val = X_val.reshape((X_val.shape[0], 3, 5, 1))
+    X_test = X_test.reshape((X_test.shape[0], 3, 5, 1))
+
+    fit_time = time.time()
+    model = train_keras_model(X_train, y_train, *params, X_val, y_val)
+    fit_time = time.time() - fit_time
+
+    train_acc = calc_acc(y_train, model.predict(X_train))
+    print('Train acc: ', train_acc)
+    test_acc = calc_acc(y_test, model.predict(X_test))
+    print('Test acc: ', test_acc)
+
+if __name__ == "__main__":
+    # BEST_MLP_MODEL = (0, 0, 4, 96)
+    # BEST_CNN_MODEL = (1, 4, 3, 96)
+    # BEST_MLP_MODEL = (0, 0, 6, 20)
+    BEST_CNN_MODEL = (4, 4, 4, 20)
+
+    # cross_testing(['1', '2', '3', '4'], BEST_MLP_MODEL)
+    # cross_testing(['5', '6', '7', '8'], BEST_MLP_MODEL)
+    # cross_testing(['10', '11', '12', '13'], BEST_MLP_MODEL)
+    # cross_testing(['14', '15', '16', '17'], BEST_MLP_MODEL)
+    # cross_testing(['18', '19', '20'], BEST_MLP_MODEL)
+    # cross_testing(['21', '22', '23'], BEST_MLP_MODEL)
 
     cross_testing(['1', '2', '3', '4'], BEST_CNN_MODEL)
     cross_testing(['5', '6', '7', '8'], BEST_CNN_MODEL)
@@ -373,3 +485,5 @@ if __name__ == "__main__":
     cross_testing(['14', '15', '16', '17'], BEST_CNN_MODEL)
     cross_testing(['18', '19', '20'], BEST_CNN_MODEL)
     cross_testing(['21', '22', '23'], BEST_CNN_MODEL)
+
+    # calib_testing(8, BEST_CNN_MODEL)

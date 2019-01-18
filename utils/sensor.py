@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 #%% functions and constants
 
-def run_feature_extraction(exp_path, sensor, fpath_sr=None, img_mode='blender'):
+def run_feature_extraction(exp_path, sensor, image_center_offset=[0,0], fpath_sr=None, img_mode='blender'):
     '''Runs feature extraction aka calculates sensor responses
 
     '''
@@ -51,7 +51,7 @@ def run_feature_extraction(exp_path, sensor, fpath_sr=None, img_mode='blender'):
         img = np.array(img.convert('L'))/255.
         #get sensor responses
 
-        _sr, _ = sensor.getSR(img)
+        _sr, _ = sensor.getSR(img, image_center_offset=image_center_offset)
         sr.append(_sr)
 #        if n>100:
 #            break
