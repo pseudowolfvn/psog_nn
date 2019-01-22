@@ -30,6 +30,9 @@ def fill_nans(data):
             np_full_data[i][:] = data.iloc[j].values
             j += 1
 
+    # few samples may still left uncopied
+    np_full_data = np.vstack((np_full_data, data.iloc[j:].values))
+
     full_data = pd.DataFrame(
         np_full_data,
         columns=data.columns
