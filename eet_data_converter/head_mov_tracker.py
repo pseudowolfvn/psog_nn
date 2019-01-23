@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 from skimage import data
-from skimage.feature import corner_harris, corner_subpix, corner_peaks
+from skimage.feature import corner_harris, corner_peaks, corner_subpix
 from skimage.io import imread
 
 from utils.img_path_gen import ImgPathGenerator
@@ -120,8 +120,9 @@ def track_subj_marker(subj_root, visualize=False):
                break
 
 def track_markers(dataset_root):
-    for subj_root in os.listdir(dataset_root):
-        track_subj_marker(os.path.join(dataset_root, subj_root))
+    for dirname in os.listdir(dataset_root):
+        subj_root = os.path.join(dataset_root, subj_root)
+        track_subj_marker(subj_root)
 
 if __name__ == "__main__":
     track_markers(sys.argv[1])
