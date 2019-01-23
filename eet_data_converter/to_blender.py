@@ -33,11 +33,11 @@ def get_img_name(ind, data):
     return tmpl.format(ind, smh, 0., smv, posx, posy)
 
 
-def get_shifted_crop(img, center, head_mov, data):
+def get_shifted_crop(img, top_left, head_mov, data):
     smh, smv = data[['smh', 'smv']]
-    x, y = center
-    x += shift_mm_to_pix(smh) + head_mov[0]
-    y += shift_mm_to_pix(smv) + head_mov[1]
+    x, y = top_left
+    x += shift_mm_to_pix(smh) - head_mov[0]
+    y += shift_mm_to_pix(smv) - head_mov[1]
     w, h = 320, 240
     if x + w // 2 > 640 or y + h // 2 > 348:
         print('crop out of the range!')
