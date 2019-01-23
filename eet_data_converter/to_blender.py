@@ -36,8 +36,8 @@ def get_img_name(ind, data):
 def get_shifted_crop(img, top_left, head_mov, data):
     smh, smv = data[['smh', 'smv']]
     x, y = top_left
-    x += shift_mm_to_pix(smh) - head_mov[0]
-    y += shift_mm_to_pix(smv) - head_mov[1]
+    x += shift_mm_to_pix(smh) + head_mov[0]
+    y += shift_mm_to_pix(smv) + head_mov[1]
     w, h = 320, 240
     if x + w // 2 > 640 or y + h // 2 > 348:
         print('crop out of the range!')

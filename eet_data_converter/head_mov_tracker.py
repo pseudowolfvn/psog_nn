@@ -107,7 +107,7 @@ def track_subj_marker(subj_root, visualize=False):
             # will serve as the marker from the previos image
             # for the next iteration
             marker.update(img)
-        print(start_x - marker.x, start_y - marker.y, file=head_mov_file)
+        print(marker.x - start_x, marker.y - start_y, file=head_mov_file)
 
         # TODO: get rid of opencv for visualization
         if visualize:
