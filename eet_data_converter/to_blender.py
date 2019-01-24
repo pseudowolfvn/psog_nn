@@ -1,130 +1,100 @@
 import os
+from pathlib import Path
+import sys
 
+import numpy as np
 import pandas as pd
-from PIL import Image
+from skimage.io import imread, imsave
 
-from eyelink_data_converter.to_blender import gen_sensor_shifts
+from utils.img_path_gen import ImgPathGenerator
+from utils.utils import repeat_up_to
 
+def add_sensor_shifts(data, hor, ver):
+    shift_pairs = np.array([(h, v) for h in hor for v in ver])
+    shifts = repeat_up_to(shift_pairs, len(data.index))
 
-def rename_to_blender(data):
-    blender_data = data.rename(index=str, columns={
-        'GazePointXLeft': 'posx',
-        'GazePointYLeft': 'posy',
-        'hor_shift': 'smh',
-        'dep_shift': 'smd',
-        'ver_shift': 'smv',
-        'PupilArea': 'pupil_size'
-    })
-    blender_data = blender_data[['posx', 'posy'
-        , 'smh', 'smd', 'smv', 'pupil_size']]
-
-    blender_data['pupil_size'] *= 2. / 1000 # ?
-    
-    return blender_data
-
+    data['hor_shift'] = shifts[:,0] 
+    data['ver_shift'] = shifts[:,1]
+    return data
 
 def shift_mm_to_pix(sh):
-    return round(sh / 0.5) * 4
+    STEP = 0.5
+    PIX_TO_MM = 4
+    return round(sh / STEP) * PIX_TO_MM
 
-
-def get_img_name(ind, data):
-    posx, posy, smh, smv = data[['posx', 'posy', 'smh', 'smv']]
-    tmpl = '{:06d}_{:+.2f}_{:+.2f}_{:+.2f}_{:+08.4f}_{:+08.4f}.jpg'
-    return tmpl.format(ind, smh, 0., smv, posx, posy)
-
-
-def get_shifted_crop(img, top_left, head_mov, data):
-    smh, smv = data[['smh', 'smv']]
+def get_shifted_crop(img, top_left, head_mov, sample):
+    smh, smv = sample[['smh', 'smv']]
     x, y = top_left
     x += shift_mm_to_pix(smh) + head_mov[0]
     y += shift_mm_to_pix(smv) + head_mov[1]
     w, h = 320, 240
-    if x + w // 2 > 640 or y + h // 2 > 348:
-        print('crop out of the range!')
-    return img.crop((x - w//2, y - h//2, x + w//2, y + h//2))
+    if x + h // 2 > img.shape[0] or y + w // 2 > img.shape[1]:
+        print('WARNING: crop out of the range!')
+    # return img.crop((y - w // 2, x - h // 2, y + w // 2, x + h // 2))
+    return img[x - h // 2: x + h // 2 + 1, y - w // 2: y + w // 2 + 1]
+
+def rename(data):
+    data = data.rename(index=str,
+        columns={'GazePointXLeft': 'posx',
+            'GazePointYLeft': 'posy',
+            'hor_shift': 'smh',
+            'ver_shift': 'smv',
+            'PupilArea': 'pupil_size'}
+    )
+    data = data[['posx', 'posy'
+        , 'smh', 'smv', 'pupil_size']]
+    
+    return data
+
+def preprocess_subj(subj_root):
+    print("Preprocessing for subject: " + subj_root)
+
+    img_paths = ImgPathGenerator(subj_root)
+
+    output_dir = os.path.join(subj_root, 'images_crop')
+
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+
+    with open(os.path.join(img_paths.get_root(), "_CropPos.txt")) as f:
+        cp_x, cp_y = map(int, f.readline().split(' '))
+
+    data = pd.read_csv(
+        os.path.join(subj_root, 'FullSignal.csv'),
+        sep='\t'
+    )
+
+    shift_range = np.arange(-2., 2. + 0.1, 0.5)
+    data = add_sensor_shifts(data, shift_range, shift_range)
+
+    data = rename(data)
+
+    data_name = Path(subj_root).name + '.csv'
+    data.to_csv(
+        os.path.join(output_dir, data_name),
+        sep='\t',
+        index=False
+    )
+
+    with open(os.path.join(img_paths.get_root(), 'head_mov.txt'), 'r') as file:
+        head_mov_data = [tuple( map( int, line.split(' ') ) )
+            for line in file.readlines()]
+    
+    for i, img_path in enumerate(img_paths):
+        img = imread(img_path)
+        img = get_shifted_crop(img,
+            (cp_x, cp_y),
+            head_mov_data[i],
+            data.iloc[i]
+        )
+        img_name = Path(img_path).name
+        imsave(os.path.join(output_dir, img_name), img)
 
 
-
-EET_DATA_ROOT = 'D:\\DmytroKatrychuk\\dev\\research\\dataset\\Google project recordings\\Heatmaps_01_S_S{:03d}_R04_SHVSS3{:d}_BW_ML_120Hz\\'
-
-def convert_to_blender():
-    for subj in range(23, 23 + 1):
-        subj_root = EET_DATA_ROOT.format(subj, 2 if subj < 11 else 4)
-
-        print("Working dir: " + subj_root)
-
-        input_dir = os.path.join(subj_root, 'images')
-        output_dir = os.path.join(subj_root, 'images_nn')
-
-        if not os.path.exists(output_dir):
-            os.mkdir(output_dir)
-
-        with open(os.path.join(input_dir, "_pc.txt")) as f:
-           line = f.readline()
-           pc_y, pc_x = map(int, line.split(' '))
-        
-        data_path = 'DOT-R22.tsv'
-        for filename in os.listdir(subj_root):
-            if filename.endswith('.tsv'):
-                data_path = filename
-
-        eet_data = pd.read_csv(os.path.join(subj_root, data_path), sep='\t')
-
-        data = gen_sensor_shifts(eet_data, 
-            [-2.0, -1.5, -1.0, -0.5, 0., 0.5, 1.0, 1.5, 2.0],
-            [-2.0, -1.5, -1.0, -0.5, 0., 0.5, 1.0, 1.5, 2.0])
-
-        blender_data = rename_to_blender(data)
-
-        blender_data.to_csv(os.path.join(output_dir, str(subj) + '.csv')
-            , sep='\t', index=False)
-
-        n_samples = blender_data.shape[0]
-        with open(os.path.join(input_dir, 'head_mov.txt'), 'r') as head_mov_file:
-            head_mov_data =  [tuple(map(int, line.split(' ')))
-                for line in head_mov_file.readlines()]
-        img_ind = 0
-        data_ind = 0
-        head_data_ind = 0
-        m = 0
-        for x, y in head_mov_data:
-            m = max(m, y)
-        print(348 - 120 - 16 - 1 - m)
-        while True:
-            img_name = str(img_ind) + '.jpg'
-            img_nan_name = str(img_ind) + '_NaN.jpg'
-            if os.path.exists(os.path.join(input_dir, img_nan_name)):
-                img_ind += 1
-                continue
-            
-            fullname = os.path.join(input_dir, img_name)
-
-            if not os.path.exists(fullname):
-                print(fullname, ' doesn\'t exist')
-                break
-
-            if data_ind >= n_samples:
-                print(data_ind, ' raw doesn\'t exist in csv')
-                break
-
-            if head_data_ind >= len(head_mov_data):
-                 print(head_data_ind, ' raw doesn\'t exist in head_mov file')
-                 break
-
-
-            img = Image.open(fullname)
-            sample = blender_data.iloc[data_ind]
-            img_name = get_img_name(img_ind, sample)
-            head_mov = head_mov_data[head_data_ind]
-            img = get_shifted_crop(img, (pc_x, pc_y), head_mov, sample)
-            img.save(os.path.join(output_dir, img_name))
-            
-            img_ind += 1
-            data_ind += 1
-            head_data_ind += 1
-        
-        head_mov_file.close()
-        break
+def preprocess(dataset_root):
+    for dirname in os.listdir(dataset_root):
+        subj_root = os.path.join(dataset_root, dirname)
+        preprocess_subj(subj_root)
 
 if __name__ == "__main__":
-    convert_to_blender()
+    preprocess(sys.argv[1])

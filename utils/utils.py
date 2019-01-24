@@ -47,3 +47,7 @@ def get_eye_stim_signal(data):
     stim = data[['stim_x', 'stim_y']].values
 
     return eye, stim
+
+def repeat_up_to(arr, size):
+    times = size // arr.shape[-1] + int(size % arr.shape[-1])
+    return np.tile(arr, (times, 1))[:size]
