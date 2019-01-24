@@ -121,7 +121,7 @@ def track_subj_marker(subj_root, visualize=False):
 
 def track_markers(dataset_root):
     for dirname in os.listdir(dataset_root):
-        subj_root = os.path.join(dataset_root, subj_root)
+        subj_root = os.path.join(dataset_root, dirname)
         track_subj_marker(subj_root)
 
 if __name__ == "__main__":
