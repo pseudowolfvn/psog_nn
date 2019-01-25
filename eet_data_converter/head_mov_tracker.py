@@ -95,7 +95,7 @@ def track_subj_marker(subj_root, visualize=False):
 
     # TODO: rewrite it in the way that allows to do it simultaneously
     # with all preprocessing steps
-    head_mov_path = os.path.join(img_paths.get_root(), 'head_mov_1.txt')
+    head_mov_path = os.path.join(img_paths.get_root(), 'head_mov.txt')
     head_mov_file = open(head_mov_path, 'w')
 
     marker = None
