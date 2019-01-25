@@ -65,19 +65,12 @@ def preprocess_subj(subj_root):
     shift_range = np.arange(-2., 2. + 0.1, 0.5)
     data = add_sensor_shifts(data, shift_range, shift_range)
 
-    data_name = Path(subj_root).name + '.csv'
-    data.to_csv(
-        os.path.join(output_dir, data_name),
-        sep='\t',
-        index=False
-    )
-
     with open(os.path.join(img_paths.get_root(), 'head_mov.txt'), 'r') as file:
         head_mov_data = [tuple( map( int, line.split(' ') ) )
             for line in file.readlines()]
     
     for i, img_path in enumerate(img_paths):
-        if data.iloc[i].isna().any():
+        if i >= data.shape[0] or data.iloc[i].isna().any():
             continue
         img = imread(img_path)
         img = get_shifted_crop(img,
@@ -87,6 +80,13 @@ def preprocess_subj(subj_root):
         )
         img_name = Path(img_path).name
         imsave(os.path.join(output_dir, img_name), img)
+    
+    data_name = Path(subj_root).name + '.csv'
+    data.dropna().to_csv(
+        os.path.join(output_dir, data_name),
+        sep='\t',
+        index=False
+    )
 
 
 def preprocess(dataset_root):
