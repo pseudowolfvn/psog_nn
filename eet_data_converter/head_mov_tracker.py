@@ -6,7 +6,7 @@ from skimage import data
 from skimage.feature import corner_harris, corner_peaks, corner_subpix
 from skimage.io import imread
 
-from utils.img_path_gen import ImgPathGenerator
+from utils.gens import ImgPathGenerator
 
 class Marker:
     def __init__(self, img, x, y, width=11, height=9):

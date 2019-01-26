@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from skimage.io import imread, imsave
 
-from utils.img_path_gen import ImgPathGenerator
+from utils.gens import ImgPathGenerator
 from utils.utils import repeat_up_to
 
 def add_sensor_shifts(data, hor, ver):
@@ -78,9 +78,14 @@ def preprocess_subj(subj_root):
             head_mov_data[i],
             data.iloc[i]
         )
-        img_name = Path(img_path).name
+
+        # TODO: at the next step the image-wise map between 
+        # the full signal and with dropped missed samples is lost
+        img_name = str(i) + '.jpg'
         imsave(os.path.join(output_dir, img_name), img)
     
+    # TODO: truncate either data or images to have the same amount of each
+
     data_name = Path(subj_root).name + '.csv'
     data.dropna().to_csv(
         os.path.join(output_dir, data_name),
@@ -93,6 +98,7 @@ def preprocess(dataset_root):
     for dirname in os.listdir(dataset_root):
         subj_root = os.path.join(dataset_root, dirname)
         preprocess_subj(subj_root)
+        # break
 
 if __name__ == "__main__":
     preprocess(sys.argv[1])
