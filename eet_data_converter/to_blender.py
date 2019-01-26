@@ -29,7 +29,7 @@ def get_shifted_crop(img, top_left, head_mov, sample):
     w, h = 320, 240
     if x + h // 2 > img.shape[0] or y + w // 2 > img.shape[1]:
         print('WARNING: crop out of the range!')
-    return img[x - h // 2: x + h // 2 + 1, y - w // 2: y + w // 2 + 1]
+    return img[x - h // 2: x + h // 2, y - w // 2: y + w // 2]
 
 def rename_subset(data):
     data = data.rename(index=str,
@@ -69,6 +69,7 @@ def preprocess_subj(subj_root):
         head_mov_data = [tuple( map( int, line.split(' ') ) )
             for line in file.readlines()]
     
+    img_ind = 0
     for i, img_path in enumerate(img_paths):
         if i >= data.shape[0] or data.iloc[i].isna().any():
             continue
@@ -81,8 +82,9 @@ def preprocess_subj(subj_root):
 
         # TODO: at the next step the image-wise map between 
         # the full signal and with dropped missed samples is lost
-        img_name = str(i) + '.jpg'
+        img_name = str(img_ind) + '.jpg'
         imsave(os.path.join(output_dir, img_name), img)
+        img_ind += 1
     
     # TODO: truncate either data or images to have the same amount of each
 
@@ -98,7 +100,7 @@ def preprocess(dataset_root):
     for dirname in os.listdir(dataset_root):
         subj_root = os.path.join(dataset_root, dirname)
         preprocess_subj(subj_root)
-        # break
+        break
 
 if __name__ == "__main__":
     preprocess(sys.argv[1])
