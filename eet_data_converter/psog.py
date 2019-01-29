@@ -27,32 +27,44 @@ class PSOG:
             (h, v) for h in range(-60, 60 + 1, 60)
                 for v in range(-120, 120 + 1, 60)
         ])
+        self.img_shape = None
     
     def get_names(self):
         return ['psog' + str(i) for i in range(self.size)]
 
-    def __get_sensor_layout(self, img, sensor_offset=[20,0]):
-        img_shape = np.array(img.shape)
-        img_center = img_shape // 2
-        sensor_centers = img_center + sensor_offset + self.sensor_locations
-        sensor_shapes = 2*self.sensor_sizes + 1
+    def __shape_changed(self, img):
+        return not np.equal(self.img_shape, img.shape).all()
 
+    def __calc_sensor_layout(self, img, sensor_offset=[20,0]):
+        self.img_shape = np.array(img.shape)
+        img_center = self.img_shape // 2
+        sensor_centers = img_center + sensor_offset + self.sensor_locations
+        
+        sensor_shapes = 2*self.sensor_sizes + 1
         sensor_bottom_lefts = sensor_centers - self.sensor_sizes
 
         return sensor_bottom_lefts, sensor_shapes
 
-    def __get_pad(self, bottom_lefts, shapes, img_shape):
+    def __calc_pad(self, img, bottom_lefts, shapes):
         top_rights = bottom_lefts + shapes
-        return np.abs(min(
+        padding = np.abs(min(
             np.min(bottom_lefts),
-            np.min(np.array(img_shape) - top_rights)
+            np.min(np.array(self.img_shape) - top_rights)
         ))
+        
+        return padding
+
+    def calc_layout_and_pad(self, img):
+        if self.__shape_changed(img):
+            self.bottom_lefts, self.shapes = self.__calc_sensor_layout(img)
+            self.pad = self.__calc_pad(img, self.bottom_lefts, self.shapes)
+            self.bottom_lefts += self.pad 
+
+        img = np.pad(img, self.pad, 'reflect')
+        return img, self.bottom_lefts, self.shapes
 
     def simulate_output(self, img):
-        bottom_lefts, shapes = self.__get_sensor_layout(img)
-        padding = self.__get_pad(bottom_lefts, shapes, img.shape)
-        bottom_lefts += padding
-        img = np.pad(img, padding, 'reflect')
+        img, bottom_lefts, shapes = self.calc_layout_and_pad(img)
         
         output = np.zeros((self.size))
 
@@ -72,7 +84,7 @@ def simulate_subj_psog(subj_root):
 
     psog_outputs = np.zeros((img_samples.get_data().shape[0], psog.size))
 
-    for i, (img, _) in enumerate(img_samples):
+    for i, (img, _) in enumerate(img_samples):    
         psog_outputs[i] = psog.simulate_output(img)
 
     data_name = Path(subj_root).name + '_' + psog.arch + '.csv'
