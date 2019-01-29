@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 import sys
 
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
 import pandas as pd
 from skimage.io import imread, imsave
@@ -65,7 +67,7 @@ class PSOG:
 
     def simulate_output(self, img):
         img, bottom_lefts, shapes = self.calc_layout_and_pad(img)
-        
+
         output = np.zeros((self.size))
 
         for i, (bl, (h, w)) in enumerate(zip(bottom_lefts, shapes)):
@@ -75,6 +77,26 @@ class PSOG:
 
         return output
 
+    def plot_layout(self, img):
+        _, ax = plt.subplots(1)
+
+        img, bottom_lefts, shapes = self.calc_layout_and_pad(img)
+        centers = bottom_lefts + self.sensor_sizes
+        img_plot = img.copy()
+
+        for i, (bl, sh, c) in enumerate(zip(bottom_lefts, shapes, centers)):
+            x, y = bl
+            h, w = sh
+            patch = img[x: x + h, y: y + w]
+            out = patch * gauss(w, w / 4.)
+            img_plot[x: x + h, y: y + w] += out
+            
+            c_x, c_y = c
+            ax.add_patch(patches.Circle((c_y, c_x), w / 4, fill=False))
+            ax.text(c_y, c_x, s=i, ha='center', va='center', color='red')
+
+        ax.imshow(img_plot, cmap='gray')
+        plt.show()
 
 def simulate_subj_psog(subj_root):
     img_samples = CropImgSampleGenerator(subj_root)
