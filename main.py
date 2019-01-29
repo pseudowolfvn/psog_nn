@@ -3,6 +3,7 @@ import sys
 from eet_data_converter.to_blender import preprocess
 from eet_data_converter.restore_missed import restore_missed_samples
 from eet_data_converter.head_mov_tracker import track_markers
+from eet_data_converter.psog import simulate_psog
 
 if __name__ == '__main__':
     # TODO: merge following to a separate preprocessing function
@@ -10,3 +11,4 @@ if __name__ == '__main__':
     restore_missed_samples(root)
     track_markers(root)
     preprocess(root)
+    simulate_psog(root)

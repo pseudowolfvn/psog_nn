@@ -100,7 +100,6 @@ def preprocess(dataset_root):
     for dirname in os.listdir(dataset_root):
         subj_root = os.path.join(dataset_root, dirname)
         preprocess_subj(subj_root)
-        break
 
 if __name__ == "__main__":
     preprocess(sys.argv[1])

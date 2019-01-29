@@ -124,7 +124,6 @@ def simulate_psog(dataset_root):
     for dirname in os.listdir(dataset_root):
         subj_root = os.path.join(dataset_root, dirname)
         simulate_subj_psog(subj_root)
-        break
 
 if __name__ == '__main__':
     simulate_psog(sys.argv[1])
