@@ -1,6 +1,7 @@
 from itertools import cycle
 import os
 
+import pandas as pd
 from sklearn.externals import joblib
 
 def plotly_color_map(names):
@@ -32,9 +33,9 @@ def extract_params(name):
 def load_data(data_root, arch, setup):
     data = {}
     for filename in os.listdir(data_root):
-        interested = arch in filename and
+        interested = (arch in filename and
             setup in filename and 
-            filename.endswith('.pkl')
+            filename.endswith('.pkl'))
         if not interested:
             continue
         data = accumulate_data(
@@ -60,3 +61,37 @@ def calc_stats(data):
         ]
     }
     return stats
+
+def accumulate_group(groups, data, subj, arch, appr):
+    subj_data = data[arch][str(subj)]
+    for ind, acc in enumerate(subj_data[appr]['data']):
+        groups = groups.append({
+            'subj': subj,
+            'arch': 1 if arch == 'mlp' else 2,
+            'appr': 1 if appr.startswith('ft') else 2,
+            'rep': ind + 1,
+            'acc': acc
+        }, ignore_index=True)
+    return groups
+
+def convert_to_groups(mlp_data, cnn_data):
+    groups = pd.DataFrame(columns=['subj', 'arch', 'appr', 'rep', 'acc'])
+
+    data = {
+        'mlp': mlp_data,
+        'cnn': cnn_data
+    }
+    subjs = mlp_data['subjs']
+    for subj in subjs:
+        groups = accumulate_group(groups, data, subj, 'mlp', 'ft') 
+        groups = accumulate_group(groups, data, subj, 'mlp', 'scr')
+
+        groups = accumulate_group(groups, data, subj, 'cnn', 'ft_fc') 
+        groups = accumulate_group(groups, data, subj, 'cnn', 'scr')
+
+    groups['subj'] = groups['subj'].astype(int)
+    groups['arch'] = groups['arch'].astype(int)
+    groups['appr'] = groups['appr'].astype(int)
+    groups['rep'] = groups['rep'].astype(int)
+
+    return groups

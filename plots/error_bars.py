@@ -8,7 +8,7 @@ import plotly.graph_objs as go
 from plotly.offline import plot
 from sklearn.externals import joblib
 
-from .utils import plotly_color_map, calc_stats
+from .utils import plotly_color_map, calc_stats, load_data, convert_to_groups
 
 FONT_SIZE = 18
 
@@ -31,8 +31,19 @@ def get_trace_for_group(mean, std, color, label):
             }
         )
 
+def load_groups_data(root, setup):
+    data_path = os.path.join(root, setup + '.csv')
+    if not os.path.exists(data_path):
+        mlp_data, _ = load_data(root, 'mlp', setup)
+        cnn_data, _ = load_data(root, 'cnn', setup)
+        data = convert_to_groups(mlp_data, cnn_data)
+        data.to_csv(data_path, sep=',')
+    else:
+        data = pd.read_csv(data_path, sep=',')
+    return data
+
 def plot_setup(root, setup):
-    data = pd.read_csv(os.path.join(root, setup + '.csv'), sep=',')
+    data = load_groups_data(root, setup)
     stats = calc_stats(data)
 
     cm = plotly_color_map(['1', '2', '3', '4'])
