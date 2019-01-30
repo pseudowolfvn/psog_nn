@@ -1,0 +1,77 @@
+import os
+import sys
+
+import numpy as np
+from sklearn.externals import joblib
+from plotly import tools
+import plotly.graph_objs as go
+from plotly.offline import plot
+
+from .utils import load_data, plotly_color_map
+
+
+def get_arch(params):
+    conv_layers = params[0]
+    return 'cnn' if conv_layers != 0 else 'mlp'
+
+def get_arch_title(params):
+    conv_layers, conv_depth, fc_layers, fc_neurons = params 
+    title = 'Dense({})x{}'.format(fc_layers, fc_neurons)
+    if get_arch(params) == 'cnn':
+        title = 'CNN: Conv2D({})x{} -> '.format(conv_layers, conv_depth) + title
+    return title
+
+def plot_subjs(data, subjs, arch_params, setup):
+    ROWS = 2
+    COLS = 4 
+
+    fig = tools.make_subplots(rows=ROWS, cols=COLS,
+        subplot_titles=['Subject ' + subj for subj in subjs])
+
+    cm = plotly_color_map(['ft', 'ft_fc', 'scr'])
+
+    arch = get_arch(arch_params)
+    legend = True
+    for ind, subj in enumerate(subjs):
+        # ft_time = round(np.mean(data[subj]['ft']['time']), 2)
+        ft = go.Box(y=data[subj]['ft']['data'], name='Finetune',
+            legendgroup='ft', marker={'color': cm['ft']}, boxmean='sd', showlegend=legend)
+        fig.append_trace(ft, ind // COLS + 1, ind % COLS + 1)
+
+        if arch == 'cnn':
+            # ft_fc_time = round(np.mean(data[subj]['ft_fc']['time']), 2)
+            ft_fc = go.Box(y=data[subj]['ft_fc']['data'], name='Finetune FC',
+                legendgroup='ft_fc', marker={'color': cm['ft_fc']}, boxmean='sd', showlegend=legend)
+            fig.append_trace(ft_fc, ind // COLS + 1, ind % COLS + 1)
+
+        # scr_time = round(np.mean(data[subj]['scr']['time']), 2)
+        scr = go.Box(y=data[subj]['scr']['data'], name='Scratch',
+            legendgroup='scr', marker={'color': cm['scr']}, boxmean='sd', showlegend=legend)
+        fig.append_trace(scr, ind // COLS + 1, ind % COLS + 1)
+        
+        legend = False
+
+    for i in range(1, ROWS*COLS + 1):
+        fig['layout'].update(title=get_arch_title(arch_params))
+        fig['layout']['xaxis' + str(i)].update(title='Approach')
+        fig['layout']['yaxis' + str(i)].update(title='Spatial accuracy')
+        fig['layout']['xaxis' + str(i)].update(showticklabels=False)
+
+    plot(
+        fig,
+        filename=setup + '_' + arch + '_' + str(subj[0]) + ':' + str(subj[-1])
+    )
+
+def plot_setup(root, arch, setup):
+    data, arch_params = load_data(root, arch, setup)
+    subjs = data['subjs']
+    plot_subjs(data, subjs[:8], arch_params, setup)
+    plot_subjs(data, subjs[8:16], arch_params, setup)
+    plot_subjs(data, subjs[16:], arch_params, setup)    
+
+if __name__ == '__main__':
+    root = sys.argv[1]
+    plot_setup(root, 'mlp', 'hp')
+    plot_setup(root, 'cnn', 'lp')
+    plot_setup(root, 'mlp', 'hp')
+    plot_setup(root, 'cnn', 'hp')
