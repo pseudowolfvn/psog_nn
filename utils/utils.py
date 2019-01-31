@@ -51,3 +51,15 @@ def get_eye_stim_signal(data):
 def repeat_up_to(arr, size):
     times = size // arr.shape[-1] + int(size % arr.shape[-1])
     return np.tile(arr, (times, 1))[:size]
+
+def do_sufficient_pad(img, pad):
+    return np.pad(img, pad, 'reflect')
+
+def calc_pad_size(img, top_lefts, shapes):
+    bottom_rights = top_lefts + shapes
+    padding = np.abs(min(
+        np.min(top_lefts),
+        np.min(np.array(img.shape) - bottom_rights)
+    ))
+
+    return top_lefts + padding, padding

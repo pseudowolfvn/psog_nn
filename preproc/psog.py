@@ -9,6 +9,7 @@ import pandas as pd
 from skimage.io import imread, imsave
 
 from utils.gens import CropImgSampleGenerator
+from utils.utils import calc_pad_size, do_sufficient_pad
 
 # this part of code is taken from Raimondas Zemblys
 def gauss(w, sigma):
@@ -43,34 +44,25 @@ class PSOG:
         sensor_centers = img_center + sensor_offset + self.sensor_locations
         
         sensor_shapes = 2*self.sensor_sizes + 1
-        sensor_bottom_lefts = sensor_centers - self.sensor_sizes
+        sensor_top_lefts = sensor_centers - self.sensor_sizes
 
-        return sensor_bottom_lefts, sensor_shapes
-
-    def __calc_pad(self, img, bottom_lefts, shapes):
-        top_rights = bottom_lefts + shapes
-        padding = np.abs(min(
-            np.min(bottom_lefts),
-            np.min(np.array(self.img_shape) - top_rights)
-        ))
-        
-        return padding
+        return sensor_top_lefts, sensor_shapes
 
     def calc_layout_and_pad(self, img):
         if self.__shape_changed(img):
-            self.bottom_lefts, self.shapes = self.__calc_sensor_layout(img)
-            self.pad = self.__calc_pad(img, self.bottom_lefts, self.shapes)
-            self.bottom_lefts += self.pad 
+            self.top_lefts, self.shapes = self.__calc_sensor_layout(img)
+            self.top_lefts, self.pad =
+                calc_pad_size(img, self.top_lefts, self.shapes)
 
-        img = np.pad(img, self.pad, 'reflect')
-        return img, self.bottom_lefts, self.shapes
+        img = do_sufficient_pad(img, self.pad)
+        return img, self.top_lefts, self.shapes
 
     def simulate_output(self, img):
-        img, bottom_lefts, shapes = self.calc_layout_and_pad(img)
+        img, top_lefts, shapes = self.calc_layout_and_pad(img)
 
         output = np.zeros((self.size))
 
-        for i, (bl, (h, w)) in enumerate(zip(bottom_lefts, shapes)):
+        for i, (bl, (h, w)) in enumerate(zip(top_lefts, shapes)):
             x, y = bl
             patch = img[x: x + h, y: y + w]
             output[i] = np.mean(patch * gauss(w, w / 4.))
@@ -80,11 +72,11 @@ class PSOG:
     def plot_layout(self, img):
         _, ax = plt.subplots(1)
 
-        img, bottom_lefts, shapes = self.calc_layout_and_pad(img)
-        centers = bottom_lefts + self.sensor_sizes
+        img, top_lefts, shapes = self.calc_layout_and_pad(img)
+        centers = top_lefts + self.sensor_sizes
         img_plot = img.copy()
 
-        for i, (bl, sh, c) in enumerate(zip(bottom_lefts, shapes, centers)):
+        for i, (bl, sh, c) in enumerate(zip(top_lefts, shapes, centers)):
             x, y = bl
             h, w = sh
             patch = img[x: x + h, y: y + w]
