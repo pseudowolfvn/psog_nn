@@ -7,7 +7,8 @@ import pandas as pd
 from skimage.io import imread, imsave
 
 from utils.gens import ImgPathGenerator
-from utils.utils import repeat_up_to
+from utils.utils import repeat_up_to, calc_pad_size, do_sufficient_pad
+
 
 def add_sensor_shifts(data, hor, ver):
     shift_pairs = np.array([(h, v) for h in hor for v in ver])
@@ -22,14 +23,19 @@ def shift_mm_to_pix(sh):
     PIX_TO_MM = 4
     return int(round(sh / STEP)) * PIX_TO_MM
 
-def get_shifted_crop(img, top_left, head_mov, sample):
-    x, y = top_left
+def get_shifted_crop(img, center, head_mov, sample):
+    x, y = center
     x += shift_mm_to_pix(sample['sh_ver']) + head_mov[0]
     y += shift_mm_to_pix(sample['sh_hor']) + head_mov[1]
+    
     w, h = 320, 240
-    if x + h // 2 > img.shape[0] or y + w // 2 > img.shape[1]:
-        print('WARNING: crop out of the range!')
-    return img[x - h // 2: x + h // 2, y - w // 2: y + w // 2]
+    top_lefts = (x - h // 2, y - w // 2)
+    
+    top_lefts, pad = calc_pad_size(img, top_lefts, (h, w))
+    img = do_sufficient_pad(img, pad)
+    
+    x, y = top_lefts
+    return img[x: x + h, y: y + w]
 
 def rename_subset(data):
     data = data.rename(index=str,
@@ -43,7 +49,7 @@ def rename_subset(data):
     return data
 
 def shift_and_crop_subj(subj_root):
-    print("Preprocessing for subject: " + subj_root)
+    print("Shift and crop for subject: " + subj_root)
 
     img_paths = ImgPathGenerator(subj_root)
 
@@ -96,10 +102,12 @@ def shift_and_crop_subj(subj_root):
     )
 
 
-def shift_and_crop(dataset_root):
+def shift_and_crop(dataset_root, subj_id=None):
     for dirname in os.listdir(dataset_root):
+        if subj_id is not None and subj_id != dirname:
+            continue
         subj_root = os.path.join(dataset_root, dirname)
-        preprocess_subj(subj_root)
+        shift_and_crop_subj(subj_root)
 
 if __name__ == "__main__":
-    preprocess(sys.argv[1])
+    shift_and_crop(sys.argv[1], '11')
