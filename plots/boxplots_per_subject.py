@@ -55,12 +55,14 @@ def plot_subjs(data, subjs, arch_params, setup):
 
     plot(
         fig,
-        filename=setup + '_' + arch + '_' + str(subj[0]) + ':' + str(subj[-1])
+        filename=setup + '_' + arch + '_' + str(subjs[0]) + ':' + str(subjs[-1])
     )
 
 def plot_setup(root, arch, setup):
     data, arch_params = load_data(root, arch, setup)
     subjs = data['subjs']
+    # be aware that it will work only if subject's id is an integer!
+    subjs.sort(key=int)
     plot_subjs(data, subjs[:8], arch_params, setup)
     plot_subjs(data, subjs[8:16], arch_params, setup)
     plot_subjs(data, subjs[16:], arch_params, setup)    

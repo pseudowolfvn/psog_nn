@@ -22,7 +22,11 @@ def plotly_color_map(names):
 
 def accumulate_data(path, data):
     temp = joblib.load(path)
-    data = {**data, **temp}
+    for k, v in temp.items():
+        if k == 'subjs' and 'subjs' in data:
+            data[k].extend(v)
+        else:
+            data[k] = v
     return data
 
 def extract_params(name):
@@ -32,7 +36,9 @@ def extract_params(name):
 
 def load_data(data_root, arch, setup):
     data = {}
+    arch_params = ()
     for filename in os.listdir(data_root):
+        print(filename)
         interested = (arch in filename and
             setup in filename and 
             filename.endswith('.pkl'))
@@ -48,34 +54,40 @@ def load_data(data_root, arch, setup):
 def calc_stats(data):
     stats = {
         'means': [
-            data[data['ArchAppr'] == 1].mean()['acc'],
-            data[data['ArchAppr'] == 2].mean()['acc'],
-            data[data['ArchAppr'] == 3].mean()['acc'],
-            data[data['ArchAppr'] == 4].mean()['acc'],
+            data[data['Group'] == 1].mean()['acc'],
+            data[data['Group'] == 2].mean()['acc'],
+            data[data['Group'] == 3].mean()['acc'],
+            data[data['Group'] == 4].mean()['acc'],
         ],
         'stds': [
-            data[data['ArchAppr'] == 1].std()['acc'],
-            data[data['ArchAppr'] == 2].std()['acc'],
-            data[data['ArchAppr'] == 3].std()['acc'],
-            data[data['ArchAppr'] == 4].std()['acc'],
+            data[data['Group'] == 1].std()['acc'],
+            data[data['Group'] == 2].std()['acc'],
+            data[data['Group'] == 3].std()['acc'],
+            data[data['Group'] == 4].std()['acc'],
         ]
     }
     return stats
 
 def accumulate_group(groups, data, subj, arch, appr):
     subj_data = data[arch][str(subj)]
+
+    subj_arch = 1 if arch == 'mlp' else 2
+    subj_appr = 1 if appr.startswith('ft') else 2
+    group = subj_appr if subj_arch == 1 else subj_appr + subj_arch
+
     for ind, acc in enumerate(subj_data[appr]['data']):
         groups = groups.append({
             'subj': subj,
-            'arch': 1 if arch == 'mlp' else 2,
-            'appr': 1 if appr.startswith('ft') else 2,
+            'arch': subj_arch,
+            'appr': subj_appr,
+            'Group': group,
             'rep': ind + 1,
             'acc': acc
         }, ignore_index=True)
     return groups
 
 def convert_to_groups(mlp_data, cnn_data):
-    groups = pd.DataFrame(columns=['subj', 'arch', 'appr', 'rep', 'acc'])
+    groups = pd.DataFrame(columns=['subj', 'arch', 'appr', 'Group', 'rep', 'acc'])
 
     data = {
         'mlp': mlp_data,
