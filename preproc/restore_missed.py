@@ -63,8 +63,10 @@ def restore_subj_missed_samples(subj_root):
     diff = data.shape[0] - samples_before
     print(', after: ', data.shape[0], ' (difference: ', diff, ')', sep='')
 
-def restore_missed_samples(dataset_root):
+def restore_missed_samples(dataset_root, subj_ids=None):
     for dirname in os.listdir(dataset_root):
+        if subj_ids is not None and dirname not in subj_ids:
+            continue
         subj_root = os.path.join(dataset_root, dirname)
         restore_subj_missed_samples(subj_root)
 

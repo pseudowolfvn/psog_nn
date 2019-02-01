@@ -102,9 +102,9 @@ def shift_and_crop_subj(subj_root):
     )
 
 
-def shift_and_crop(dataset_root, subj_id=None):
+def shift_and_crop(dataset_root, subj_ids=None):
     for dirname in os.listdir(dataset_root):
-        if subj_id is not None and subj_id != dirname:
+        if subj_ids is not None and dirname not in subj_ids:
             continue
         subj_root = os.path.join(dataset_root, dirname)
         shift_and_crop_subj(subj_root)

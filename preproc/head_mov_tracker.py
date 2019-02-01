@@ -119,8 +119,10 @@ def track_subj_marker(subj_root, visualize=False):
                continue
                break
 
-def track_markers(dataset_root):
+def track_markers(dataset_root, subj_ids=None):
     for dirname in os.listdir(dataset_root):
+        if subj_ids is not None and dirname not in subj_ids:
+            continue
         subj_root = os.path.join(dataset_root, dirname)
         track_subj_marker(subj_root)
 

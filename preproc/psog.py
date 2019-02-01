@@ -51,7 +51,7 @@ class PSOG:
     def calc_layout_and_pad(self, img):
         if self.__shape_changed(img):
             self.top_lefts, self.shapes = self.__calc_sensor_layout(img)
-            self.top_lefts, self.pad =
+            self.top_lefts, self.pad = \
                 calc_pad_size(img, self.top_lefts, self.shapes)
 
         img = do_sufficient_pad(img, self.pad)
@@ -112,8 +112,10 @@ def simulate_subj_psog(subj_root):
     )
 
 
-def simulate_psog(dataset_root):
+def simulate_psog(dataset_root, subj_ids=None):
     for dirname in os.listdir(dataset_root):
+        if subj_ids is not None and dirname not in subj_ids:
+            continue
         subj_root = os.path.join(dataset_root, dirname)
         simulate_subj_psog(subj_root)
 
