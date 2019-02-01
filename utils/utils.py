@@ -72,10 +72,12 @@ def do_sufficient_pad(img, pad):
     return np.pad(img, pad, 'reflect')
 
 def calc_pad_size(img, top_lefts, shapes):
-    bottom_rights = np.array(top_lefts) + shapes
-    padding = np.abs(min(
+    top_lefts = np.array(top_lefts)
+    bottom_rights = top_lefts + shapes
+    overrun = min(
         np.min(top_lefts),
-        np.min(np.array(img.shape) - bottom_rights)
-    ))
+        np.min(np.array(img.shape)[:2] - bottom_rights)
+    )
+    padding = 0 if overrun > 0 else -overrun
 
     return top_lefts + padding, padding

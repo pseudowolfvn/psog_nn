@@ -91,6 +91,8 @@ class PSOG:
         plt.show()
 
 def simulate_subj_psog(subj_root):
+    print('Simulating PSOG output for subject:', subj_root)
+    
     img_samples = CropImgSampleGenerator(subj_root)
     psog = PSOG()
 

@@ -79,7 +79,7 @@ def shift_and_crop_subj(subj_root):
     for i, img_path in enumerate(img_paths):
         if i >= data.shape[0] or data.iloc[i].isna().any():
             continue
-        img = imread(img_path, as_gray=True)
+        img = imread(img_path)
         img = get_shifted_crop(img,
             (cp_x, cp_y),
             head_mov_data[i],
