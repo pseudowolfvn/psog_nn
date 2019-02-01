@@ -48,6 +48,22 @@ def get_eye_stim_signal(data):
 
     return eye, stim
 
+def deg_to_pix(deg):
+    posx, posy = deg
+    dist_mm = 500.
+    w_mm = 374.
+    h_mm = 300.
+    w_pix = 1280
+    h_pix = 1024
+    conv = lambda data, pix, mm, dist: \
+        int(round(np.tan(data / 180. * np.pi) * dist * pix/mm + pix/2.))
+    return conv(posx, w_pix, w_mm, dist_mm), \
+        conv(-posy, h_pix, h_mm, dist_mm)
+
+def get_arch(params):
+    conv_layers = params[0]
+    return 'cnn' if conv_layers != 0 else 'mlp'
+
 def repeat_up_to(arr, size):
     times = size // arr.shape[-1] + int(size % arr.shape[-1])
     return np.tile(arr, (times, 1))[:size]

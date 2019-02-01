@@ -8,11 +8,7 @@ import plotly.graph_objs as go
 from plotly.offline import plot
 
 from .utils import load_data, plotly_color_map
-
-
-def get_arch(params):
-    conv_layers = params[0]
-    return 'cnn' if conv_layers != 0 else 'mlp'
+from utils.utils import get_arch
 
 def get_arch_title(params):
     conv_layers, conv_depth, fc_layers, fc_neurons = params 

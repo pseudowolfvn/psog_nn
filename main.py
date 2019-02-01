@@ -46,10 +46,10 @@ if __name__ == '__main__':
             subj_ids = none_if_empty(args.missed)
             restore_missed_samples(root, subj_ids)
         if args.head_mov is not None:
-            subj_ids = none_if_empty(args.missed)
+            subj_ids = none_if_empty(args.head_mov)
             track_markers(root, subj_ids)
         if args.shift_crop is not None:
-            subj_ids = none_if_empty(args.missed)
+            subj_ids = none_if_empty(args.shift_crop)
             shift_and_crop(root, subj_ids)
         if args.psog is not None:
             subj_ids = none_if_empty(args.psog)
