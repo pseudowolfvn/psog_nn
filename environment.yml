@@ -1,0 +1,11 @@
+name: psog_nn_etra2019
+dependencies:
+  - python=3.6.7
+  - keras-gpu=2.2.4
+  - matplotlib=3.0.1
+  - numpy=1.15.4
+  - pandas=0.23.4
+  - scikit-learn=0.20.0
+  - scikit-image=0.14.0
+  - opencv=3.4.2
+  - plotly=3.4.2
