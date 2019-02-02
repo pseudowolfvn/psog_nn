@@ -24,7 +24,7 @@ The project consists of three modules:
 - ml: machine learning part of the project
 - plots: scripts to create plots used in the paper
 
-For more specific details, consult the corresponding help page or section of the paper itself.
+For more specific details, consult the corresponding section of the paper itself.
 
 ## Usage:
 ```
@@ -32,6 +32,11 @@ python main.py [-h] [--root ROOT] {preproc,ml,plot}
 ```
 modes:
 &nbsp;&nbsp;&nbsp;&nbsp;{preproc, ml, plot} (can be run in only one mode at once!)
+
+For more details, consult a help page of the corresponding mode:
+```
+python main.py {preproc,ml,plot} [-h]
+```
 
 
 ## Examples
