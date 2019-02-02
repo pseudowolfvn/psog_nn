@@ -8,7 +8,8 @@ import plotly.graph_objs as go
 from plotly.offline import plot
 from sklearn.externals import joblib
 
-from .utils import plotly_color_map, calc_stats, load_data, convert_to_groups
+from .utils import calc_stats, convert_to_groups, \
+    get_module_prefix, load_data, plotly_color_map
 
 FONT_SIZE = 18
 
@@ -90,10 +91,10 @@ def plot_setup(root, setup):
         filename=plot_path
     )
 
-def plot_study(root, setups):
+def plot_error_bars(root, setups):
     for setup in setups:
         plot_setup(root, setup)
 
 if __name__ == '__main__':
     root = sys.argv[1]
-    plot_study(root, ['lp', 'hp'])
+    plot_error_bars(root, ['lp', 'hp'])

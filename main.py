@@ -7,8 +7,8 @@ from preproc.head_mov_tracker import track_markers
 from preproc.psog import simulate_psog
 from ml.grid_search import grid_search
 from ml.eval import evaluate_study
-from plots.boxplots_per_subject import plot_study
-from plots.error_bars import plot_study
+from plots.boxplots_per_subject import plot_boxplots
+from plots.error_bars import plot_error_bars
 from plots.samples_distrib import draw_samples
 
 def build_subparsers():
@@ -71,9 +71,9 @@ if __name__ == '__main__':
             evaluate_study(root, args.arch, args.setup)
     elif args.cmd == 'plot':
         if args.boxplots:
-            boxplots_per_subject.plot_study(root, args.arch, args.setup)
+            plot_boxplots(root, args.arch, args.setup)
         if args.error_bars:
-            error_bars.plot_study(root, args.setup)
+            plot_error_bars(root, args.setup)
         if args.samples_distrib is not None:
             subj_ids = none_if_empty(args.samples_distrib)
             draw_samples(root, subj_ids)

@@ -8,7 +8,7 @@ from utils.utils import get_arch
 
 
 def get_module_prefix():
-    return r'.\plots'
+    return 'plots'
 
 def plotly_color_map(names):
     # From https://stackoverflow.com/a/44727682
@@ -42,19 +42,19 @@ def extract_params(name):
 
 def load_data(data_root, arch, setup):
     data = {}
-    arch_params = ()
+    params = ()
     for filename in os.listdir(data_root):
+        if not filename.endswith('.pkl'):
+            continue
         params = extract_params(filename)
-        interested = (arch == get_arch(params) and
-            setup in filename and 
-            filename.endswith('.pkl'))
+        interested = (arch == get_arch(params) and setup in filename)
         if not interested:
             continue
         data = accumulate_data(
             os.path.join(data_root, filename),
             data
         )
-    return data, arch_params
+    return data, params
 
 def calc_stats(data):
     stats = {

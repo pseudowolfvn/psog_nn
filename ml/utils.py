@@ -5,7 +5,7 @@ from sklearn.externals import joblib
 
 
 def get_module_prefix():
-    return r'.\ml'
+    return 'ml'
 
 def get_model_path(subjs, params):
     return os.path.join(

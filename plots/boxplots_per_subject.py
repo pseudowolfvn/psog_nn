@@ -74,11 +74,11 @@ def plot_setup(root, arch, setup):
     plot_subjs(data, subjs[8:16], arch_params, setup)
     plot_subjs(data, subjs[16:], arch_params, setup)    
 
-def plot_study(root, archs, setups):
+def plot_boxplots(root, archs, setups):
     for arch in archs:
         for setup in setups:
             plot_setup(root, arch, setup)
 
 if __name__ == '__main__':
     root = sys.argv[1]
-    plot_study(root, ['mlp', 'cnn'], ['lp', 'hp'])
+    plot_boxplots(root, ['mlp', 'cnn'], ['lp', 'hp'])
