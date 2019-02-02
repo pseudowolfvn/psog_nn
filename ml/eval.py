@@ -12,7 +12,19 @@ from .utils import get_module_prefix
 from utils.utils import get_arch
 
 
-def evaluate_approaches(root, test_subjs, params, setup, REPS=0):
+def evaluate_approaches(root, test_subjs, params, setup, redo, REPS=1):
+    results_dir = os.path.join(get_module_prefix(), 'results')
+    if not os.path.exists(results_dir):
+        os.mkdir(results_dir)
+    data_path = os.path.join(
+        results_dir, 
+        str(setup) + '_' + str(params) + '_' + str(test_subjs) + '.pkl'
+    )
+    
+    if not redo and os.path.exists(data_path):
+        print('Evaluation results', data_path, 'already exists, skip')
+        return 
+
     data = {'subjs': test_subjs}
     for subj in test_subjs:
         ft = np.zeros((REPS))
@@ -50,16 +62,11 @@ def evaluate_approaches(root, test_subjs, params, setup, REPS=0):
         data[subj]['scr']['time'] = scr_time
 
     print(data)
-    data_dir = os.path.join(get_module_prefix(), 'results')
-    if not os.path.exists(data_dir):
-        os.mkdir(data_dir)
-    data_path = os.path.join(
-        data_dir, 
-        str(setup) + '_' + str(params) + '_' + str(test_subjs) + '.pkl'
-    )
+    
+    
     joblib.dump(data, data_path)
 
-def cross_testing(root, test_subjs, params, setup):
+def cross_testing(root, test_subjs, params, setup, redo):
     print('Evaluate approaches for params: ', params,
         ', setup:', setup)
     
@@ -67,9 +74,9 @@ def cross_testing(root, test_subjs, params, setup):
     print('Train on: ', train_subjs, 'Test on: ', test_subjs)
     
     train_and_save(root, train_subjs, test_subjs, params, load=True)
-    evaluate_approaches(root, test_subjs, params, setup)
+    evaluate_approaches(root, test_subjs, params, setup, redo)
 
-def evaluate_study(root, archs, setups):
+def evaluate_study(root, archs, setups, redo=True):
     subjs_split = [
         ['1', '2', '3', '4'],
         ['5', '6', '7', '8'],
@@ -82,7 +89,7 @@ def evaluate_study(root, archs, setups):
         for setup in setups:
             params = get_best_model_params(arch, setup)
             for subjs in subjs_split:
-                cross_testing(root, subjs, params, setup)
+                cross_testing(root, subjs, params, setup, redo)
 
 if __name__ == "__main__":
     #evaluation(['mlp', 'cnn'], ['lp', 'hp'])

@@ -42,9 +42,6 @@ def get_best_model_params(arch, setup):
 
 def grid_search_arch_setup(root, train_subjs, test_subjs,
     search_space, arch, setup, redo):
-    X_train, X_val, X_test, y_train, y_val, y_test = \
-        get_general_data(root, train_subjs, test_subjs, arch)
-
     log_dir = os.path.join(get_module_prefix(), 'log')
     if not os.path.exists(log_dir):
         os.mkdir(log_dir)
@@ -57,6 +54,10 @@ def grid_search_arch_setup(root, train_subjs, test_subjs,
         return
     
     log = open(log_path, 'w')
+
+    X_train, X_val, X_test, y_train, y_val, y_test = \
+        get_general_data(root, train_subjs, test_subjs, arch)
+
     models = []
 
     print('Grid-search for architecture:', arch, ', setup:', setup)

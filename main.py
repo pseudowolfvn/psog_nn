@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 
 from preproc.shift_crop import shift_and_crop
@@ -13,7 +14,7 @@ from plots.samples_distrib import draw_samples
 
 def build_subparsers():
     parser = argparse.ArgumentParser()
-    parser.add_argument('root')
+    parser.add_argument('--root', default='dataset', nargs='?')
     subparsers = parser.add_subparsers(dest='cmd')
 
     preproc = subparsers.add_parser('preproc')
@@ -48,32 +49,32 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
-    root = args.root
+    dataset_root = args.root
+    results_root = os.path.join('ml', 'results')
 
     if args.cmd == 'preproc':
         if args.missed is not None:
             subj_ids = none_if_empty(args.missed)
-            restore_missed_samples(root, subj_ids)
+            restore_missed_samples(dataset_root, subj_ids)
         if args.head_mov is not None:
             subj_ids = none_if_empty(args.head_mov)
-            track_markers(root, subj_ids)
+            track_markers(dataset_root, subj_ids)
         if args.shift_crop is not None:
             subj_ids = none_if_empty(args.shift_crop)
-            shift_and_crop(root, subj_ids)
+            shift_and_crop(dataset_root, subj_ids)
         if args.psog is not None:
             subj_ids = none_if_empty(args.psog)
-            simulate_psog(root, subj_ids)
-
+            simulate_psog(dataset_root, subj_ids)
     elif args.cmd == 'ml':
         if args.grid_search:
-            grid_search(root, args.arch, args.setup, redo=False)
+            grid_search(dataset_root, args.arch, args.setup, redo=False)
         if args.train:
-            evaluate_study(root, args.arch, args.setup)
+            evaluate_study(dataset_root, args.arch, args.setup, redo=False)
     elif args.cmd == 'plot':
         if args.boxplots:
-            plot_boxplots(root, args.arch, args.setup)
+            plot_boxplots(results_root, args.arch, args.setup)
         if args.error_bars:
-            plot_error_bars(root, args.setup)
+            plot_error_bars(results_root, args.setup)
         if args.samples_distrib is not None:
             subj_ids = none_if_empty(args.samples_distrib)
-            draw_samples(root, subj_ids)
+            draw_samples(dataset_root, subj_ids)

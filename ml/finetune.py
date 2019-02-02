@@ -7,21 +7,20 @@ from utils.utils import get_arch
 
 
 def train_and_save(root, train_subjs, test_subjs, params, load=False):
-    X_train, X_val, X_test, y_train, y_val, y_test = \
-        get_general_data(root, train_subjs, test_subjs, get_arch(params))
-
     model_path = get_model_path(test_subjs, params)
     model = build_model(params)
     
-    if not load or not os.path.exists(model_path):
-        model.train(X_train, y_train, X_val, y_val, batch_size=2000)
-        model.save_weights(model_path)
-        print('Model ' + model_path + ' saved')
-    else:
-        print('Model ' + model_path + ' already exists')
-        model.load_weights(model_path)
-        print('Model ' + model_path + ' loaded')
+    if load and os.path.exists(model_path):
+        print('Model', model_path, 'already exists, skip')
+        return
     
+    X_train, X_val, X_test, y_train, y_val, y_test = \
+        get_general_data(root, train_subjs, test_subjs, get_arch(params))
+
+    model.train(X_train, y_train, X_val, y_val, batch_size=2000)
+    model.save_weights(model_path)
+    print('Model', model_path, ' saved')
+
     train_acc, test_acc, _ = model.report_acc(X_train, y_train, X_test, y_test)
     print('Train acc: ', train_acc)
     print('Test acc: ', test_acc)
