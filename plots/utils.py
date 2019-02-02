@@ -4,6 +4,9 @@ import os
 import pandas as pd
 from sklearn.externals import joblib
 
+def get_module_prefix():
+    return r'.\plots'
+
 def plotly_color_map(names):
     # From https://stackoverflow.com/a/44727682
     plotly_colors = cycle(['#1f77b4',  # muted blue

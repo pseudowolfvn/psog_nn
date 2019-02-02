@@ -7,7 +7,7 @@ from plotly import tools
 import plotly.graph_objs as go
 from plotly.offline import plot
 
-from .utils import load_data, plotly_color_map
+from .utils import load_data, plotly_color_map, get_module_prefix
 from utils.utils import get_arch
 
 def get_arch_title(params):
@@ -53,9 +53,16 @@ def plot_subjs(data, subjs, arch_params, setup):
         fig['layout']['yaxis' + str(i)].update(title='Spatial accuracy')
         fig['layout']['xaxis' + str(i)].update(showticklabels=False)
 
+    plot_dir = os.path.join(get_module_prefix(), 'boxplots')
+    if not os.path.exists(plot_dir):
+        os.mkdir(plot_dir)
+    plot_path = os.path.join(
+        plot_dir,
+        setup + '_' + arch + '_' + str(subjs[0]) + ':' + str(subjs[-1])
+    )
     plot(
         fig,
-        filename=setup + '_' + arch + '_' + str(subjs[0]) + ':' + str(subjs[-1])
+        filename=plot_path
     )
 
 def plot_setup(root, arch, setup):

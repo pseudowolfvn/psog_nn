@@ -9,6 +9,7 @@ from ml.grid_search import grid_search
 from ml.eval import evaluate_study
 from plots.boxplots_per_subject import plot_study
 from plots.error_bars import plot_study
+from plots.samples_distrib import draw_samples
 
 def build_subparsers():
     parser = argparse.ArgumentParser()
@@ -35,7 +36,7 @@ def build_subparsers():
     plot.add_argument('--error_bars', default=False, action='store_true')
     plot.add_argument('--arch', default=archs, nargs='*', choices=archs)
     plot.add_argument('--setup', default=setups, nargs='*', choices=setups)
-    plot.add_argument('--calib_stimuli', nargs='*')
+    plot.add_argument('--samples_distrib', nargs='*')
 
     return parser
 
@@ -73,5 +74,6 @@ if __name__ == '__main__':
             boxplots_per_subject.plot_study(root, args.arch, args.setup)
         if args.error_bars:
             error_bars.plot_study(root, args.setup)
-        if args.calib_stimuli is not None:
-            pass
+        if args.samples_distrib is not None:
+            subj_ids = none_if_empty(args.samples_distrib)
+            draw_samples(root, subj_ids)
