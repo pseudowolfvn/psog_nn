@@ -5,6 +5,10 @@ from preproc.shift_crop import shift_and_crop
 from preproc.restore_missed import restore_missed_samples
 from preproc.head_mov_tracker import track_markers
 from preproc.psog import simulate_psog
+from ml.grid_search import grid_search
+from ml.eval import evaluate_study
+from plots.boxplots_per_subject import plot_study
+from plots.error_bars import plot_study
 
 def build_subparsers():
     parser = argparse.ArgumentParser()
@@ -22,11 +26,15 @@ def build_subparsers():
 
     ml.add_argument('--grid_search', default=False, action='store_true')
     ml.add_argument('--train', default=False, action='store_true')
-    ml.add_argument('--arch', nargs='*', choices=['mlp', 'cnn'])
-    ml.add_argument('--setup', nargs='*', choices=['lp', 'hp'])
+    archs = ['mlp', 'cnn']
+    ml.add_argument('--arch', default=archs, nargs='*', choices=archs)
+    setups = ['lp', 'hp']
+    ml.add_argument('--setup', default=setups, nargs='*', choices=setups)
     
-    plot.add_argument('--boxplots')
-    plot.add_argument('--error_bars', nargs='*', choices=['lp', 'hp'])
+    plot.add_argument('--boxplots', default=False, action='store_true')
+    plot.add_argument('--error_bars', default=False, action='store_true')
+    plot.add_argument('--arch', default=archs, nargs='*', choices=archs)
+    plot.add_argument('--setup', default=setups, nargs='*', choices=setups)
     plot.add_argument('--calib_stimuli', nargs='*')
 
     return parser
@@ -56,14 +64,14 @@ if __name__ == '__main__':
             simulate_psog(root, subj_ids)
 
     elif args.cmd == 'ml':
-        if args.grid_search is not None:
-            pass
-        if args.train is not None:
-            pass
+        if args.grid_search:
+            grid_search(root, args.arch, args.setup, redo=False)
+        if args.train:
+            evaluate_study(root, args.arch, args.setup)
     elif args.cmd == 'plot':
-        if args.boxplots is not None:
-            pass
-        if args.error_bars is not None:
-            pass
+        if args.boxplots:
+            boxplots_per_subject.plot_study(root, args.arch, args.setup)
+        if args.error_bars:
+            error_bars.plot_study(root, args.setup)
         if args.calib_stimuli is not None:
             pass

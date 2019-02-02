@@ -1,51 +1,78 @@
+import os
+from pathlib import Path
 import time
 
 from keras.callbacks import EarlyStopping
 from keras.layers.convolutional import Conv2D
 from keras.layers.core import Activation, Dense, Flatten
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.optimizers import Nadam
 from keras.regularizers import l2
 
 from utils.metrics import calc_acc
+from utils.utils import get_arch
 
 
-class Model(Sequential):
-    def __init__(self, conv_layers, conv_kernel, layers, neurons)
-        for _ in range(conv_layers):
-            self.add(Conv2D(conv_kernel, 3, padding='same'))
+class Model:
+    def __init__(self, L_conv, D, L_fc, N):
+        self.model = Sequential()
 
-        if conv_layers > 0:
-            self.add(Flatten())
+        for _ in range(L_conv):
+            self.model.add(Conv2D(D, 3, padding='same'))
 
-        for _ in range(layers):
-            self.add(Dense(neurons, activation='relu', kernel_regularizer=l2(0.0001)))
+        if L_conv > 0:
+            self.model.add(Flatten())
 
-        self.add(Dense(2))
+        for _ in range(L_fc):
+            self.model.add(Dense(N, activation='relu', kernel_regularizer=l2(0.0001)))
+
+        self.model.add(Dense(2))
 
         nadam_opt = Nadam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
-        self.compile(loss='mean_squared_error', optimizer=nadam_opt)
+        self.model.compile(loss='mean_squared_error', optimizer=nadam_opt)
 
-    def train(X, y, X_val, y_val, epochs=1000, batch_size=200, patience=100):
+    def train(self, X, y, X_val, y_val, epochs=1000, batch_size=200, patience=100):
         early_stopping = EarlyStopping(monitor='val_loss'
             , patience=patience, mode='auto', restore_best_weights=True)
 
         fit_time = time.time()
-        self.fit(X, y, nb_epoch=epochs, batch_size=batch_size
+        self.model.fit(X, y, nb_epoch=epochs, batch_size=batch_size
             , validation_data=(X_val, y_val), verbose=1
             , callbacks=[early_stopping])
         return time.time() - fit_time
         
     def report_acc(self, X_train, y_train, X_test, y_test, X_val=None, y_val=None):
-        train_acc = calc_acc(y_train, model.predict(X_train))
-        test_acc = calc_acc(y_test, model.predict(X_test))
+        train_acc = calc_acc(y_train, self.model.predict(X_train))
+        test_acc = calc_acc(y_test, self.model.predict(X_test))
         val_acc = None
         if X_val is not None and y_val is not None:
-            val_acc = calc_acc(y_val, model.predict(X_val))
+            val_acc = calc_acc(y_val, self.model.predict(X_val))
         return train_acc, test_acc, val_acc
 
-ModelCNN = Model
+    def save_weights(self, model_path):
+        model_dir = str(Path(model_path).parent)
+        if not os.path.exists(model_dir):
+            os.mkdir(model_dir)
+        self.model.save(model_path)
 
-class ModelMLP(Model):
+    def load_weights(self, model_path):
+        self.model = load_model(model_path)
+
+    def freeze_conv(self):
+        for layer in self.model.layers:
+            if layer.name.startswith('conv2d'):
+                layer.trainable = False
+
+CNN = Model
+
+class MLP(Model):
     def __init__(self, layers, neurons):
         super().__init__(0, 0, layers, neurons)
+
+# TODO: rewrite to factory
+def build_model(params):
+    arch = get_arch(params) 
+    if arch == 'mlp':
+        return MLP(*params[-2:])
+    elif arch == 'cnn':
+        return CNN(*params)

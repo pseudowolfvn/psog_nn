@@ -1,16 +1,18 @@
-import numpy as np
+import os
+import sys
 
+import numpy as np
 from sklearn.externals import joblib
 
-from .finetune import load_and_finetune, load_and_finetune_fc
+from .finetune import train_and_save, load_and_finetune, load_and_finetune_fc
 from .from_scratch import train_from_scratch
-from .load_data import split_test_from_train
+from .grid_search import get_best_model_params
+from .load_data import split_test_from_all
 from .utils import get_module_prefix
 from utils.utils import get_arch
 
 
-def evaluation(test_subjs, params, REPS=1):
-    arch = get_arch(params)
+def evaluate_approaches(root, test_subjs, params, setup, REPS=0):
     data = {'subjs': test_subjs}
     for subj in test_subjs:
         ft = np.zeros((REPS))
@@ -21,7 +23,7 @@ def evaluation(test_subjs, params, REPS=1):
         scr_time = np.zeros((REPS))
         
         for i in range(REPS):
-            _, acc, t = load_and_finetune(test_subjs, subj, params)
+            _, acc, t = load_and_finetune(root, test_subjs, subj, params)
             ft[i] = acc
             ft_time[i] = t
         
@@ -30,9 +32,9 @@ def evaluation(test_subjs, params, REPS=1):
         data[subj]['ft']['data'] = ft
         data[subj]['ft']['time'] = ft_time
 
-        if arch == 'cnn':
+        if get_arch(params) == 'cnn':
             for i in range(REPS):
-                _, acc, t = load_and_finetune_fc(test_subjs, subj, params)
+                _, acc, t = load_and_finetune_fc(root, test_subjs, subj, params)
                 ft_fc[i] = acc
                 ft_fc_time[i] = t
             data[subj]['ft_fc'] = {}
@@ -40,7 +42,7 @@ def evaluation(test_subjs, params, REPS=1):
             data[subj]['ft_fc']['time'] = ft_fc_time
 
         for i in range(REPS):
-            _, acc, t = train_from_scratch(subj, params)
+            _, acc, t = train_from_scratch(root, subj, params)
             scr[i] = acc
             scr_time[i] = t
         data[subj]['scr'] = {}
@@ -48,34 +50,40 @@ def evaluation(test_subjs, params, REPS=1):
         data[subj]['scr']['time'] = scr_time
 
     print(data)
+    data_dir = os.path.join(get_module_prefix(), 'results')
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
     data_path = os.path.join(
-        get_module_prefix(),
-        str(arch) + '_' + str(params) + '_' + str(test_subjs) + '.pkl'
+        data_dir, 
+        str(setup) + '_' + str(params) + '_' + str(test_subjs) + '.pkl'
     )
     joblib.dump(data, data_path)
 
-def cross_testing(test_subjs, params):
-    train_subjs, test_subjs = split_test_from_train(test_subjs)
+def cross_testing(root, test_subjs, params, setup):
+    print('Evaluate approaches for params: ', params,
+        ', setup:', setup)
+    
+    train_subjs, test_subjs = split_test_from_all(test_subjs)
     print('Train on: ', train_subjs, 'Test on: ', test_subjs)
-    train_and_save(train_subjs, test_subjs, params, load=True)
-    evaluation(test_subjs, params)
+    
+    train_and_save(root, train_subjs, test_subjs, params, load=True)
+    evaluate_approaches(root, test_subjs, params, setup)
+
+def evaluate_study(root, archs, setups):
+    subjs_split = [
+        ['1', '2', '3', '4'],
+        ['5', '6', '7', '8'],
+        ['10', '11', '12', '13'],
+        ['14', '15', '16', '17'],
+        ['18', '19', '20'],
+        ['21', '22', '23']
+    ]
+    for arch in archs:
+        for setup in setups:
+            params = get_best_model_params(arch, setup)
+            for subjs in subjs_split:
+                cross_testing(root, subjs, params, setup)
 
 if __name__ == "__main__":
-    # BEST_MLP_MODEL = (0, 0, 4, 96)
-    # BEST_CNN_MODEL = (1, 4, 3, 96)
-    # BEST_MLP_MODEL = (0, 0, 6, 20)
-    BEST_CNN_MODEL = (4, 4, 4, 20)
-
-    # cross_testing(['1', '2', '3', '4'], BEST_MLP_MODEL)
-    # cross_testing(['5', '6', '7', '8'], BEST_MLP_MODEL)
-    # cross_testing(['10', '11', '12', '13'], BEST_MLP_MODEL)
-    # cross_testing(['14', '15', '16', '17'], BEST_MLP_MODEL)
-    # cross_testing(['18', '19', '20'], BEST_MLP_MODEL)
-    # cross_testing(['21', '22', '23'], BEST_MLP_MODEL)
-
-    cross_testing(['1', '2', '3', '4'], BEST_CNN_MODEL)
-    cross_testing(['5', '6', '7', '8'], BEST_CNN_MODEL)
-    cross_testing(['10', '11', '12', '13'], BEST_CNN_MODEL)
-    cross_testing(['14', '15', '16', '17'], BEST_CNN_MODEL)
-    cross_testing(['18', '19', '20'], BEST_CNN_MODEL)
-    cross_testing(['21', '22', '23'], BEST_CNN_MODEL)
+    #evaluation(['mlp', 'cnn'], ['lp', 'hp'])
+    evaluate_study(sys.argv[1], ['mlp'], ['lp'])
