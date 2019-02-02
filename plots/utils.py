@@ -42,7 +42,7 @@ def extract_params(name):
 
 def load_data(data_root, arch, setup):
     data = {}
-    params = ()
+    arch_params = ()
     for filename in os.listdir(data_root):
         if not filename.endswith('.pkl'):
             continue
@@ -54,7 +54,8 @@ def load_data(data_root, arch, setup):
             os.path.join(data_root, filename),
             data
         )
-    return data, params
+        arch_params = params
+    return data, arch_params
 
 def calc_stats(data):
     stats = {
