@@ -9,7 +9,10 @@ from preproc.psog import PSOG
 from .utils import filter_outliers, normalize
 
 
-def get_subj_data(subj_root, sensor, subj_ids=None):
+def get_subj_data(subj_root, sensor=None):
+    if sensor is None:
+        sensor = PSOG()
+
     data_name = Path(subj_root).name + '_' + sensor.arch + '.csv'
     data_path = os.path.join(subj_root, data_name)
     data = pd.read_csv(data_path, sep='\t')

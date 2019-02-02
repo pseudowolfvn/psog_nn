@@ -78,8 +78,16 @@ def plot_setup(root, setup):
             )
     )
 
+    plot_dir = os.path.join(get_module_prefix(), 'error_bars')
+    if not os.path.exists(plot_dir):
+        os.mkdir(plot_dir)
+    plot_path = os.path.join(
+        plot_dir,
+        setup + '_error_bars'
+    )
     plot(
-        fig, filename=setup + '_error_bars'
+        fig,
+        filename=plot_path
     )
 
 def plot_study(root, setups):
