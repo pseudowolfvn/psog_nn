@@ -61,8 +61,10 @@ def deg_to_pix(deg):
         conv(-posy, h_pix, h_mm, dist_mm)
 
 def get_arch(params):
-    conv_layers = params[0]
-    return 'cnn' if conv_layers != 0 else 'mlp'
+    if len(params) == 4 and params[0] > 0:
+        return 'cnn'
+    elif len(params) == 2 or params[0] == 0:
+        return 'mlp'
 
 def repeat_up_to(arr, size):
     times = size // arr.shape[-1] + int(size % arr.shape[-1])
