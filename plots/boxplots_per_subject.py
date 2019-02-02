@@ -11,10 +11,10 @@ from .utils import load_data, plotly_color_map
 from utils.utils import get_arch
 
 def get_arch_title(params):
-    conv_layers, conv_depth, fc_layers, fc_neurons = params 
-    title = 'Dense({})x{}'.format(fc_layers, fc_neurons)
+    L_conv, D, L_fc, N = params 
+    title = 'Dense({})x{}'.format(L_fc, N)
     if get_arch(params) == 'cnn':
-        title = 'CNN: Conv2D({})x{} -> '.format(conv_layers, conv_depth) + title
+        title = 'CNN: Conv2D({})x{} -> '.format(L_conv, D) + title
     return title
 
 def plot_subjs(data, subjs, arch_params, setup):
@@ -66,6 +66,11 @@ def plot_setup(root, arch, setup):
     plot_subjs(data, subjs[:8], arch_params, setup)
     plot_subjs(data, subjs[8:16], arch_params, setup)
     plot_subjs(data, subjs[16:], arch_params, setup)    
+
+def plot_study(root, archs, setups):
+    for arch in archs:
+        for setup in setups:
+            plot_setup(root, arch, setup)
 
 if __name__ == '__main__':
     root = sys.argv[1]

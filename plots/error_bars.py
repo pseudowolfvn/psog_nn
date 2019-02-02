@@ -82,7 +82,10 @@ def plot_setup(root, setup):
         fig, filename=setup + '_error_bars'
     )
 
+def plot_study(root, setups):
+    for setup in setups:
+        plot_setup(root, setup)
+
 if __name__ == '__main__':
     root = sys.argv[1]
-    plot_setup(root, 'lp')
-    plot_setup(root, 'hp')
+    plot_study(root, ['lp', 'hp'])
