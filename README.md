@@ -47,7 +47,7 @@ modes:
 ```$ python main.py ml --grid-search --arch mlp --setup lp```
 3. To create all plots used in the paper, use:
 ```$ python main.py plot --error_bars --samples_distrib```
-	1. To create additional boxplots of spacial accuracy for per subject evaluation, use:
+	1. To create additional boxplots of spatial accuracy for per subject evaluation, use:
 ```$ python main.py plot --boxplots```
 
 	P.S. plot mode can be restricted to specific architecture and/or setup as shown in 2.i
