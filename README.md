@@ -4,7 +4,7 @@
 This repository contains code for ETRA 2019 submission: "Power-efficient and shift-robust eye-tracking sensor for portable VR headsets".
 
 ## Dataset
-The dataset can be downloaded from [here](https://txst-my.sharepoint.com/:u:/g/personal/d_k139_txstate_edu/EacGiK96d_RGsnW8vvQZbKcBFZLZZEFthHr_-DgEiP3YyA?e=RBKnBh)
+The dataset can be downloaded from [here](https://txst-my.sharepoint.com/:u:/g/personal/d_k139_txstate_edu/EacGiK96d_RGsnW8vvQZbKcBFZLZZEFthHr_-DgEiP3YyA?e=RBKnBh). 
 It's recommended to extract the dataset into '.\dataset' directory.
 
 ## Install
@@ -39,17 +39,17 @@ modes:
 
 1. To run the whole preprocessing, use:
 ```$ python main.py preproc --missed --head_mov -- shift_crop --psog```
-1.1 To run the PSOG simulation only for subject 12, with dataset in the custom directory, use:
+	1. To run the PSOG simulation only for subject 12, with dataset in the custom directory, use:
 ```$ python main.py --root ~/dev/research/psog_nn/dataset preproc --psog 12```
 2. To run the whole machine learning part, use: 
 ```$ python main.py ml --grid-search --evaluate```
-2.1 To run the grid-search only for 'MLP' architecture, low-power setup, use:
+	1. To run the grid-search only for 'MLP' architecture, low-power setup, use:
 ```$ python main.py ml --grid-search --arch mlp --setup lp```
 3. To create all plots used in the paper, use:
 ```$ python main.py plot --error_bars --samples_distrib```
-3.1 To create additional boxplots of per subject thorough evaluation, use:
+	1. To create additional boxplots of per subject thorough evaluation, use:
 ```$ python main.py plot --boxplots```
-P.S. plot mode can be restricted to specific architecture and/or setup as shown in 2.1
+P.S. plot mode can be restricted to specific architecture and/or setup as shown in 2.i
 
 ## Notes:
 
