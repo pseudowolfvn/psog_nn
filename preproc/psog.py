@@ -92,7 +92,7 @@ class PSOG:
 
 def simulate_subj_psog(subj_root):
     print('Simulating PSOG output for subject:', subj_root)
-    
+
     img_samples = CropImgSampleGenerator(subj_root)
     psog = PSOG()
 
@@ -109,8 +109,9 @@ def simulate_subj_psog(subj_root):
             zip(psog.get_names(), psog_outputs.T)
         )
     ).to_csv(
-        os.path.join(img_samples.get_root(), data_name),
-        sep='\t'
+        os.path.join(subj_root, data_name),
+        sep='\t',
+        index=False
     )
 
 
