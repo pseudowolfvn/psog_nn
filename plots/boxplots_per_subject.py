@@ -74,7 +74,4 @@ def plot_study(root, archs, setups):
 
 if __name__ == '__main__':
     root = sys.argv[1]
-    plot_setup(root, 'mlp', 'hp')
-    plot_setup(root, 'cnn', 'lp')
-    plot_setup(root, 'mlp', 'hp')
-    plot_setup(root, 'cnn', 'hp')
+    plot_study(root, ['mlp', 'cnn'], ['lp', 'hp'])

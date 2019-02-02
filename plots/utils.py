@@ -4,6 +4,8 @@ import os
 import pandas as pd
 from sklearn.externals import joblib
 
+from utils.utils import get_arch
+
 def plotly_color_map(names):
     # From https://stackoverflow.com/a/44727682
     plotly_colors = cycle(['#1f77b4',  # muted blue
@@ -38,8 +40,8 @@ def load_data(data_root, arch, setup):
     data = {}
     arch_params = ()
     for filename in os.listdir(data_root):
-        print(filename)
-        interested = (arch in filename and
+        params = extract_params(filename)
+        interested = (arch == get_arch(params) and
             setup in filename and 
             filename.endswith('.pkl'))
         if not interested:
@@ -48,7 +50,6 @@ def load_data(data_root, arch, setup):
             os.path.join(data_root, filename),
             data
         )
-        arch_params = extract_params(filename)
     return data, arch_params
 
 def calc_stats(data):
