@@ -104,7 +104,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
-    dataset_root = args.root
+    dataset_root = args.root[0] if isinstance(args.root, list) else args.root
     results_root = os.path.join('ml', 'results')
 
     if args.cmd == 'preproc':
