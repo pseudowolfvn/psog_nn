@@ -70,7 +70,9 @@ def repeat_up_to(arr, size):
     times = size // arr.shape[-1] + int(size % arr.shape[-1])
     return np.tile(arr, (times, 1))[:size]
 
-def do_sufficient_pad(img, pad):
+def do_sufficient_pad(img, pad_size):
+    # if image is RGB then color channel shouldn't be padded
+    pad = ((pad_size,), (pad_size,), (0,)) if len(img.shape) == 3 else pad_size
     return np.pad(img, pad, 'reflect')
 
 def calc_pad_size(img, top_lefts, shapes):
