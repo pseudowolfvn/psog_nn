@@ -99,13 +99,19 @@ def build_subparsers():
 def none_if_empty(l):
     return None if len(l) == 0 else l
 
+def list_if_not(x):
+    return [x] if not isinstance(x, list) else x
+
 if __name__ == '__main__':
     parser = build_subparsers()
 
     args = parser.parse_args()
-    
+
     dataset_root = args.root[0] if isinstance(args.root, list) else args.root
     results_root = os.path.join('ml', 'results')
+
+    args.arch = list_if_not(args.arch)
+    args.setup = list_if_not(args.setup)
 
     if args.cmd == 'preproc':
         if args.missed is not None:
