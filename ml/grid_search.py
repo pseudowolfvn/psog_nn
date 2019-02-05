@@ -57,6 +57,7 @@ def grid_search_arch_setup(root, train_subjs, test_subjs,
 
     X_train, X_val, X_test, y_train, y_val, y_test = \
         get_general_data(root, train_subjs, test_subjs, arch)
+    n_pca = X_train.shape[1]
 
     models = []
 
@@ -72,7 +73,7 @@ def grid_search_arch_setup(root, train_subjs, test_subjs,
             for L_fc in search_space['layers']:
                 for N in search_space['neurons']:
                     if setup == 'lp':
-                        flops = mlp_flops(L_fc, N) if arch == 'mlp' \
+                        flops = mlp_flops(n_pca, L_fc, N) if arch == 'mlp' \
                             else cnn_flops(L_conv, D, L_fc, N)
                         if flops > 84000:
                             continue
