@@ -22,20 +22,25 @@ def filter_outliers(data, verbose=False):
     return data.drop(outliers.index)
 
 def normalize(X_train, X_test, subjs, arch, load=True):
+    # we don't need to do PCA for 'cnn' architecture
+    if arch == 'cnn':
+        return X_train, X_test
+    
     norm_dir = os.path.join(get_module_prefix(), 'pca')
     if not os.path.exists(norm_dir):
         os.mkdir(norm_dir)
     norm_path = os.path.join(norm_dir, 'normalizer_' + str(subjs) + '.pkl')
 
-    if not load or not os.path.exists(norm_path):
+    if load and os.path.exists(norm_path):
+        normalizer = joblib.load(norm_path)
+    else:
         normalizer = PCA(
-            n_components=(None if arch == 'cnn' else 0.99),
+            n_components=0.99,
             whiten=True,
             random_state=0o62217)
         normalizer.fit(X_train)
         joblib.dump(normalizer, norm_path)
-    else:
-        normalizer = joblib.load(norm_path)
+        
     X_train = normalizer.transform(X_train)
     X_test = normalizer.transform(X_test)
     return X_train, X_test
