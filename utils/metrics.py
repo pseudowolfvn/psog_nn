@@ -1,3 +1,5 @@
+""" Different metrics.
+"""
 import numpy as np
 
 def calc_acc(y_pred, y_gt):

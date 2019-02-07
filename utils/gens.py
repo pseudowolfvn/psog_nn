@@ -1,5 +1,7 @@
-from pathlib import Path
+""" Images generators.
+"""
 import os
+from pathlib import Path
 
 import pandas as pd
 from skimage.io import imread
@@ -15,7 +17,7 @@ class ImgPathGenerator:
             self.img_ind += 1
             return img_path
         raise StopIteration()
-    
+
     def __iter__(self):
         return self
 
@@ -28,7 +30,7 @@ class ImgPathGenerator:
 # TODO: make the following class abstract
 class ImgSampleGenerator:
     def __init__(self, subj_root, imgs_dir, data_relpath):
-        self.img_paths = ImgPathGenerator(subj_root, imgs_dir) 
+        self.img_paths = ImgPathGenerator(subj_root, imgs_dir)
         self.data = pd.read_csv(
             os.path.join(subj_root, data_relpath),
             sep='\t'
@@ -36,7 +38,7 @@ class ImgSampleGenerator:
 
     def __next__(self):
         for i, img_path in enumerate(self.img_paths):
-            # TODO: there is inconsistency between the number of headers 
+            # TODO: there is inconsistency between the number of headers
             # and actual number of data columns in the full signal, so
             # we need to check for all NaN except the timestamp, not any one
             if i >= self.data.shape[0] or self.data.iloc[i][1:].isna().all():
@@ -45,7 +47,7 @@ class ImgSampleGenerator:
             sample = self.data.iloc[i]
             return img, sample
         raise StopIteration()
-    
+
     def __iter__(self):
         return self
 
