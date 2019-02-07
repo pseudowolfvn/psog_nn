@@ -1,19 +1,21 @@
+""" 'Fine-tune' approach related training.
+"""
 import os
 
-from .load_data import get_general_data, get_specific_data
-from .model import build_model
-from .utils import get_model_path
+from ml.load_data import get_general_data, get_specific_data
+from ml.model import build_model
+from ml.utils import get_model_path
 from utils.utils import get_arch
 
 
 def train_and_save(root, train_subjs, test_subjs, params, load=False):
     model_path = get_model_path(test_subjs, params)
     model = build_model(params)
-    
+
     if load and os.path.exists(model_path):
         print('Model', model_path, 'already exists, skip')
         return
-    
+
     X_train, X_val, X_test, y_train, y_val, y_test = \
         get_general_data(root, train_subjs, test_subjs, get_arch(params))
 
@@ -56,13 +58,13 @@ def load_and_finetune_fc(root, test_subjs, subj, params):
 
     X_train, X_val, X_test, y_train, y_val, y_test = \
         get_specific_data(root, test_subjs, subj, 'cnn', True)
-    
+
     model = build_model(params)
     model_path = get_model_path(test_subjs, params)
     model.load_weights(model_path)
 
     model.freeze_conv()
-    
+
     print('Model ' + model_path + ' loaded')
 
     fit_time = model.train(

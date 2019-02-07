@@ -1,3 +1,5 @@
+""" Read dataset in ready-to train/test format.
+"""
 import os
 from pathlib import Path
 
@@ -5,8 +7,8 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+from ml.utils import filter_outliers, normalize
 from preproc.psog import PSOG
-from .utils import filter_outliers, normalize
 
 
 def get_subj_data(subj_root, sensor=None):
@@ -63,7 +65,10 @@ def get_specific_data(root, test_subjs, subj, arch, load_normalizer):
     X_train, y_train = get_data(root, subj)
     X_train, X_test, y_train, y_test = train_test_split(
         X_train, y_train, test_size=0.7, random_state=42)
-    X_train, X_test = normalize(X_train, X_test, test_subjs, arch, load_normalizer)
+    X_train, X_test = normalize(
+        X_train, X_test,
+        test_subjs, arch, load_normalizer
+    )
     X_train, X_val, y_train, y_val = train_test_split(
         X_train, y_train, test_size=0.2, random_state=42)
 
