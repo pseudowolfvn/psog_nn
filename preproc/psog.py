@@ -1,12 +1,12 @@
+""" PSOG output simulation.
+"""
 import os
 from pathlib import Path
 import sys
 
-import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-from skimage.io import imread, imsave
 
 from utils.gens import CropImgSampleGenerator
 from utils.utils import calc_pad_size, do_sufficient_pad
@@ -28,21 +28,21 @@ class PSOG:
         self.sensor_sizes = np.repeat([[60, 60]], self.size, axis=0)
         self.sensor_locations = np.array([
             (h, v) for h in range(-60, 60 + 1, 60)
-                for v in range(-120, 120 + 1, 60)
+            for v in range(-120, 120 + 1, 60)
         ])
         self.img_shape = None
-    
+
     def get_names(self):
         return ['psog' + str(i) for i in range(self.size)]
 
     def __shape_changed(self, img):
         return not np.equal(self.img_shape, img.shape).all()
 
-    def __calc_sensor_layout(self, img, sensor_offset=[20,0]):
+    def __calc_sensor_layout(self, img, sensor_offset=(20, 0)):
         self.img_shape = np.array(img.shape)
         img_center = self.img_shape // 2
         sensor_centers = img_center + sensor_offset + self.sensor_locations
-        
+
         sensor_shapes = 2*self.sensor_sizes + 1
         sensor_top_lefts = sensor_centers - self.sensor_sizes
 
@@ -62,8 +62,8 @@ class PSOG:
 
         output = np.zeros((self.size))
 
-        for i, (bl, (h, w)) in enumerate(zip(top_lefts, shapes)):
-            x, y = bl
+        for i, (tl, (h, w)) in enumerate(zip(top_lefts, shapes)):
+            x, y = tl
             patch = img[x: x + h, y: y + w]
             output[i] = np.mean(patch * gauss(w, w / 4.))
 
@@ -76,13 +76,13 @@ class PSOG:
         centers = top_lefts + self.sensor_sizes
         img_plot = img.copy()
 
-        for i, (bl, sh, c) in enumerate(zip(top_lefts, shapes, centers)):
-            x, y = bl
+        for i, (tl, sh, c) in enumerate(zip(top_lefts, shapes, centers)):
+            x, y = tl
             h, w = sh
             patch = img[x: x + h, y: y + w]
             out = patch * gauss(w, w / 4.)
             img_plot[x: x + h, y: y + w] += out
-            
+
             c_x, c_y = c
             ax.add_patch(patches.Circle((c_y, c_x), w / 4, fill=False))
             ax.text(c_y, c_x, s=i, ha='center', va='center', color='red')
@@ -100,7 +100,7 @@ def simulate_subj_psog(subj_root):
 
     psog_outputs = np.zeros((img_samples.get_data().shape[0], psog.size))
 
-    for i, (img, _) in enumerate(img_samples):    
+    for i, (img, _) in enumerate(img_samples):
         psog_outputs[i] = psog.simulate_output(img)
 
     data_name = Path(subj_root).name + '_' + psog.arch + '.csv'
