@@ -1,3 +1,5 @@
+""" Restore missed samples in eye-movement signal file.
+"""
 import math
 import os
 import sys
@@ -14,7 +16,7 @@ def fill_nans(data):
     FREQ = 1000
     time_gap = FREQ/FPS
     samples_estimated = math.ceil(data['Timestamp'].iloc[-1] / FREQ * FPS)
-    
+
     # storing the intermediate data in a numpy array is much more efficient
     np_full_data = np.zeros((samples_estimated, data.shape[1]))
     np_full_data[:] = np.nan
@@ -43,12 +45,12 @@ def restore_subj_missed_samples(subj_root):
 
     INPUT_NAME = 'UnprocessedSignal.csv'
     OUTPUT_NAME = 'FullSignal.csv'
-        
+
     data = pd.read_csv(
         os.path.join(subj_root, INPUT_NAME),
         sep='\t'
     )
-    
+
     samples_before = data.shape[0]
     print('Samples before: ', samples_before, end='')
 
