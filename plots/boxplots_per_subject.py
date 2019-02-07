@@ -1,17 +1,17 @@
+""" Plot per subject resulting spatial accuracy boxplots.
+"""
 import os
 import sys
 
-import numpy as np
-from sklearn.externals import joblib
 from plotly import tools
 import plotly.graph_objs as go
 from plotly.offline import plot
 
-from .utils import load_data, plotly_color_map, get_module_prefix
+from plots.utils import load_data, plotly_color_map, get_module_prefix
 from utils.utils import get_arch
 
 def get_arch_title(params):
-    L_conv, D, L_fc, N = params 
+    L_conv, D, L_fc, N = params
     title = 'Dense({})x{}'.format(L_fc, N)
     if get_arch(params) == 'cnn':
         title = 'CNN: Conv2D({})x{} -> '.format(L_conv, D) + title
@@ -19,10 +19,12 @@ def get_arch_title(params):
 
 def plot_subjs(data, subjs, arch_params, setup):
     ROWS = 2
-    COLS = 4 
+    COLS = 4
 
-    fig = tools.make_subplots(rows=ROWS, cols=COLS,
-        subplot_titles=['Subject ' + subj for subj in subjs])
+    fig = tools.make_subplots(
+        rows=ROWS, cols=COLS,
+        subplot_titles=['Subject ' + subj for subj in subjs]
+    )
 
     cm = plotly_color_map(['ft', 'ft_fc', 'scr'])
 
@@ -30,21 +32,30 @@ def plot_subjs(data, subjs, arch_params, setup):
     legend = True
     for ind, subj in enumerate(subjs):
         # ft_time = round(np.mean(data[subj]['ft']['time']), 2)
-        ft = go.Box(y=data[subj]['ft']['data'], name='Finetune',
-            legendgroup='ft', marker={'color': cm['ft']}, boxmean='sd', showlegend=legend)
+        ft = go.Box(
+            y=data[subj]['ft']['data'], name='Finetune',
+            legendgroup='ft', marker={'color': cm['ft']},
+            boxmean='sd', showlegend=legend
+        )
         fig.append_trace(ft, ind // COLS + 1, ind % COLS + 1)
 
         if arch == 'cnn':
             # ft_fc_time = round(np.mean(data[subj]['ft_fc']['time']), 2)
-            ft_fc = go.Box(y=data[subj]['ft_fc']['data'], name='Finetune FC',
-                legendgroup='ft_fc', marker={'color': cm['ft_fc']}, boxmean='sd', showlegend=legend)
+            ft_fc = go.Box(
+                y=data[subj]['ft_fc']['data'], name='Finetune FC',
+                legendgroup='ft_fc', marker={'color': cm['ft_fc']},
+                boxmean='sd', showlegend=legend
+            )
             fig.append_trace(ft_fc, ind // COLS + 1, ind % COLS + 1)
 
         # scr_time = round(np.mean(data[subj]['scr']['time']), 2)
-        scr = go.Box(y=data[subj]['scr']['data'], name='Scratch',
-            legendgroup='scr', marker={'color': cm['scr']}, boxmean='sd', showlegend=legend)
+        scr = go.Box(
+            y=data[subj]['scr']['data'], name='Scratch',
+            legendgroup='scr', marker={'color': cm['scr']},
+            boxmean='sd', showlegend=legend
+        )
         fig.append_trace(scr, ind // COLS + 1, ind % COLS + 1)
-        
+
         legend = False
 
     for i in range(1, ROWS*COLS + 1):
@@ -72,7 +83,7 @@ def plot_setup(root, arch, setup):
     subjs.sort(key=int)
     plot_subjs(data, subjs[:8], arch_params, setup)
     plot_subjs(data, subjs[8:16], arch_params, setup)
-    plot_subjs(data, subjs[16:], arch_params, setup)    
+    plot_subjs(data, subjs[16:], arch_params, setup)
 
 def plot_boxplots(root, archs, setups):
     for arch in archs:
@@ -80,5 +91,4 @@ def plot_boxplots(root, archs, setups):
             plot_setup(root, arch, setup)
 
 if __name__ == '__main__':
-    root = sys.argv[1]
-    plot_boxplots(root, ['mlp', 'cnn'], ['lp', 'hp'])
+    plot_boxplots(sys.argv[1], ['mlp', 'cnn'], ['lp', 'hp'])
