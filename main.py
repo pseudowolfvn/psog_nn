@@ -132,8 +132,11 @@ def run_cli():
     dataset_root = args.root[0] if isinstance(args.root, list) else args.root
     results_root = os.path.join('ml', 'results')
 
-    args.arch = list_if_not(args.arch)
-    args.setup = list_if_not(args.setup)
+    # if --arch or --setup is used with only one argument, convert it to list
+    if 'arch' in args:
+        args.arch = list_if_not(args.arch)
+    if 'setup' in args:
+        args.setup = list_if_not(args.setup)
 
     if args.cmd == 'preproc':
         if args.missed is not None:
@@ -151,7 +154,7 @@ def run_cli():
     elif args.cmd == 'ml':
         if args.grid_search:
             grid_search(dataset_root, args.arch, args.setup, redo=False)
-        if args.train:
+        if args.evaluate:
             evaluate_study(dataset_root, args.arch, args.setup, redo=False)
     elif args.cmd == 'plot':
         if args.boxplots:
