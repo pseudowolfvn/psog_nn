@@ -1,3 +1,5 @@
+""" Combine all shifts and crop to close eye caption.
+"""
 import os
 from pathlib import Path
 import sys
@@ -14,8 +16,8 @@ def add_sensor_shifts(data, hor, ver):
     shift_pairs = np.array([(h, v) for h in hor for v in ver])
     shifts = repeat_up_to(shift_pairs, data.dropna().shape[0])
 
-    data.loc[data.dropna().index, 'sh_hor'] = shifts[:,0] 
-    data.loc[data.dropna().index, 'sh_ver'] = shifts[:,1]
+    data.loc[data.dropna().index, 'sh_hor'] = shifts[:, 0]
+    data.loc[data.dropna().index, 'sh_ver'] = shifts[:, 1]
     return data
 
 def shift_mm_to_pix(sh):
@@ -27,22 +29,25 @@ def get_shifted_crop(img, center, head_mov, sample):
     x, y = center
     x += shift_mm_to_pix(sample['sh_ver']) + head_mov[0]
     y += shift_mm_to_pix(sample['sh_hor']) + head_mov[1]
-    
+
     w, h = 320, 240
     top_lefts = (x - h // 2, y - w // 2)
-    
+
     top_lefts, pad = calc_pad_size(img, top_lefts, (h, w))
     img = do_sufficient_pad(img, pad)
-    
+
     x, y = top_lefts
     return img[x: x + h, y: y + w]
 
 def rename_subset(data):
-    data = data.rename(index=str,
-        columns={'Timestamp': 'time',
+    data = data.rename(
+        index=str,
+        columns={
+            'Timestamp': 'time',
             'GazePointXLeft': 'pos_x',
             'GazePointYLeft': 'pos_y',
-            'PupilArea': 'pupil_size'}
+            'PupilArea': 'pupil_size'
+        }
     )
     data = data[['time', 'pos_x', 'pos_y', 'pupil_size']]
 
@@ -72,26 +77,29 @@ def shift_and_crop_subj(subj_root):
     data = add_sensor_shifts(data, shift_range, shift_range)
 
     with open(os.path.join(img_paths.get_root(), 'head_mov.txt'), 'r') as file:
-        head_mov_data = [tuple( map( int, line.split(' ') ) )
-            for line in file.readlines()]
-    
+        head_mov_data = [
+            tuple(map(int, line.split(' ')))
+            for line in file.readlines()
+        ]
+
     img_ind = 0
     for i, img_path in enumerate(img_paths):
         if i >= data.shape[0] or data.iloc[i].isna().any():
             continue
         img = imread(img_path)
-        img = get_shifted_crop(img,
+        img = get_shifted_crop(
+            img,
             (cp_x, cp_y),
             head_mov_data[i],
             data.iloc[i]
         )
 
-        # TODO: at the next step the image-wise map between 
+        # TODO: at the next step the image-wise map between
         # the full signal and with dropped missed samples is lost
         img_name = str(img_ind) + '.jpg'
         imsave(os.path.join(output_dir, img_name), img)
         img_ind += 1
-    
+
     # TODO: truncate either data or images to have the same amount of each
 
     data_name = Path(subj_root).name + '.csv'
@@ -110,4 +118,4 @@ def shift_and_crop(dataset_root, subj_ids=None):
         shift_and_crop_subj(subj_root)
 
 if __name__ == "__main__":
-    shift_and_crop(sys.argv[1], '11')
+    shift_and_crop(sys.argv[1])

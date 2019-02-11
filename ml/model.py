@@ -1,10 +1,12 @@
+""" Models implementation.
+"""
 import os
 from pathlib import Path
 import time
 
 from keras.callbacks import EarlyStopping
 from keras.layers.convolutional import Conv2D
-from keras.layers.core import Activation, Dense, Flatten
+from keras.layers.core import Dense, Flatten
 from keras.models import Sequential, load_model
 from keras.optimizers import Nadam
 from keras.regularizers import l2
@@ -32,15 +34,19 @@ class Model:
         self.model.compile(loss='mean_squared_error', optimizer=nadam_opt)
 
     def train(self, X, y, X_val, y_val, epochs=1000, batch_size=200, patience=100):
-        early_stopping = EarlyStopping(monitor='val_loss'
-            , patience=patience, mode='auto', restore_best_weights=True)
+        early_stopping = EarlyStopping(
+            monitor='val_loss', patience=patience,
+            mode='auto', restore_best_weights=True
+        )
 
         fit_time = time.time()
-        self.model.fit(X, y, nb_epoch=epochs, batch_size=batch_size
-            , validation_data=(X_val, y_val), verbose=1
-            , callbacks=[early_stopping])
+        self.model.fit(
+            X, y, nb_epoch=epochs, batch_size=batch_size,
+            validation_data=(X_val, y_val), verbose=1,
+            callbacks=[early_stopping]
+        )
         return time.time() - fit_time
-        
+
     def report_acc(self, X_train, y_train, X_test, y_test, X_val=None, y_val=None):
         train_acc = calc_acc(y_train, self.model.predict(X_train))
         test_acc = calc_acc(y_test, self.model.predict(X_test))
@@ -71,8 +77,9 @@ class MLP(Model):
 
 # TODO: rewrite to factory
 def build_model(params):
-    arch = get_arch(params) 
+    arch = get_arch(params)
     if arch == 'mlp':
         return MLP(*params[-2:])
-    elif arch == 'cnn':
+    if arch == 'cnn':
         return CNN(*params)
+    return None

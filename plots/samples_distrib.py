@@ -1,14 +1,16 @@
+""" Plot per subject stimulus samples distribution.
+"""
 import os
 from pathlib import Path
+import sys
 import xml.etree.ElementTree as ET
 
 import cv2
 import numpy as np
-import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from .utils import get_module_prefix
 from ml.load_data import get_subj_data, normalize
+from plots.utils import get_module_prefix
 from utils.utils import deg_to_pix
 
 def draw_subj_samples(subj_root):
@@ -16,7 +18,7 @@ def draw_subj_samples(subj_root):
     subj = Path(subj_root).name
 
     data_path = 'Stimulus.xml'
-    
+
     tree = ET.parse(os.path.join(subj_root, data_path))
     root = tree.getroot()
 
@@ -59,16 +61,16 @@ def draw_subj_samples(subj_root):
             train_ind.extend([ind])
         else:
             test_ind.extend([ind])
-    
+
     X_test = X_train[test_ind]
     y_test = y_train[test_ind]
-    
+
     X_train = X_train[train_ind]
     y_train = y_train[train_ind]
 
     X_train, X_test = normalize(X_train, X_test, subj, False, 'cnn')
 
-    X_test, X_val, y_test, y_val = train_test_split(
+    X_test, _, y_test, _ = train_test_split(
         X_test, y_test, test_size=0.2, random_state=42)
 
     h, w = 1024, 1280
@@ -83,7 +85,7 @@ def draw_subj_samples(subj_root):
     # for pos in y_val:
     #     x, y = deg_to_pix(pos)
     #     cv2.circle(img, (x, y), 1, (0, 255, 0), -1)
-    
+
     print('Test: ', y_test.shape)
     for pos in y_test:
         x, y = deg_to_pix(pos)
@@ -100,8 +102,10 @@ def draw_subj_samples(subj_root):
         pos = stimuli_grid[grid_ind]
         x, y = pos
         cv2.circle(img, (x, y), 5, (0, 0, 0), -1)
-        cv2.putText(img, str(ind + 1), (x - 7, y - 45),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 2)
+        cv2.putText(
+            img, str(ind + 1), (x - 7, y - 45),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 2
+        )
         if ind + 1 in [1, 3, 5, 9, 11, 13, 17, 19, 21]:
             cv2.circle(img, (x, y), 35, (0, 0, 0), 1)
 
@@ -118,5 +122,4 @@ def draw_samples(root, subj_ids=None):
         draw_subj_samples(subj_root)
 
 if __name__ == "__main__":
-    root = sys.argv[1]
-    draw_samples(root)
+    draw_samples(sys.argv[1])

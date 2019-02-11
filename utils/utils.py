@@ -1,10 +1,11 @@
+""" Utility functions.
+"""
 import numpy as np
 
 def to_radial(x):
     if isinstance(x, tuple):
         return np.hypot(x[0], x[1])
-    else:
-        return np.hypot(x[:,0], x[:,1])
+    return np.hypot(x[:, 0], x[:, 1])
 
 def merge_sorted_unique(a, b):
     a = np.array(a, dtype=np.int)
@@ -25,21 +26,21 @@ def merge_sorted_unique(a, b):
         while p_b < len(b) and b[p_b] == c[p_c]:
             p_b += 1
         p_c += 1
-    
+
     if p_a < len(a):
         p_last = p_a
         last = a
     else:
         p_last = p_b
         last = b
-    
+
     while p_last < len(last):
         # print('p_last: ', p_last)
         c[p_c] = last[p_last]
         while p_last < len(last) and last[p_last] == c[p_c]:
             p_last += 1
         p_c += 1
-    
+
     return c[:p_c]
 
 def get_eye_stim_signal(data):
