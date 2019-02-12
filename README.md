@@ -12,9 +12,13 @@ It's recommended to extract the dataset into '.\dataset' directory.
 
 ## Install
 It's highly recommended to install [conda](https://conda.io/en/latest/miniconda.html) to run this project.
-This command will create 'psog_nn_etra2019' conda environment with all sufficient packages needed:
+Note that you should have Nvidia GPU to run it efficiently. Assuming that, the next command will create 'psog_nn_etra2019' conda environment with all sufficient packages needed:
 ```
-$ conda env create -f environment.yml
+$ conda env create -f env.yml
+```
+In case you don't have Nvidia GPU and/or you're not interested in machine learning part, the next command will create 'fallback' conda environment with the same name:
+```
+$ conda env create -f env_nogpu.yml
 ```
 All following commands should be run inside newly created environment. To activate it, use:
 ```
