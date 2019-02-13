@@ -73,7 +73,7 @@ def get_calib_fixations(data):
     fixations = []
     boundaries = np.concatenate((
         [-1],
-        data[data.dv > 5].index.values,
+        data[data.drv > 5].index.values,
         [data.index[-1] + 1]
     ))
     LEN_THRESH = 30
@@ -126,7 +126,7 @@ def find_best_corr(sig_data, fix_data, fix_pos):
     for b in range(len(sig_data.index) - fix_len):
         corr, _ = pearsonr(
             sig_data[b: b + fix_len]['dv'].values,
-            fix_data[on: off]['dv'].values
+            fix_data[on: off + 1]['dv'].values
         )
         if corr > best_corr:
             best_corr = corr
@@ -145,7 +145,9 @@ if __name__ == '__main__':
     )
     fixations_data = convert_fixations_pix_to_deg(fixations_data)
 
-    for fixation in get_calib_fixations(fixations_data):
+    for ind, fixation in enumerate(get_calib_fixations(fixations_data)):
         b, e = find_best_corr(signal_data, fixations_data, fixation)
         print(b, e)
-        break
+        on, off = fixation
+        plot_pos(signal_data[b: e], str(ind) + '_sig_corr_test')
+        plot_pos(fixations_data[on: off + 1], str(ind) +  '_fix_corr_test')
