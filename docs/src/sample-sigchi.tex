@@ -1,122 +1,100 @@
-\documentclass[sigchi, review]{acmart}
+\documentclass[sigchi, anonymous=true]{acmart}
 
 \usepackage{booktabs} % For formal tables
-
+\usepackage{adjustbox}
+\usepackage{refcount}
+\usepackage{colortbl}
+\usepackage{graphicx,subcaption}
+\usepackage{listings}
 
 % Copyright
 %\setcopyright{none}
 %\setcopyright{acmcopyright}
-%\setcopyright{acmlicensed}
+\setcopyright{acmlicensed}
 %\setcopyright{rightsretained}
 %\setcopyright{usgov}
 %\setcopyright{usgovmixed}
 %\setcopyright{cagov}
-\setcopyright{licensedcagov}
+%\setcopyright{licensedcagov}
 %\setcopyright{cagovmixed}
 %\setcopyright{licensedothergov}
 
 % DOI
-\acmDOI{10.475/123_4}
+% \acmDOI{10.475/123_4}
 
 % ISBN
-\acmISBN{123-4567-24-567/08/06}
+% \acmISBN{123-4567-24-567/08/06}
 
 %Conference
-\acmConference[WOODSTOCK'97]{ACM Woodstock conference}{July 1997}{El
-  Paso, Texas USA}
-\acmYear{1997}
-\copyrightyear{2016}
+\acmConference[ETRA'19]{ACM ETRA conference}{June 2019}{Denver, Colorado USA}
+\acmYear{2019}
+\copyrightyear{2018}
 
 \acmPrice{15.00}
 
 
 \begin{document}
-\title{SIG Proceedings Paper in LaTeX Format}
-\titlenote{Produces the permission block, and
-  copyright information}
-\subtitle{Extended Abstract}
-\subtitlenote{The full version of the author's guide is available as
-  \texttt{acmart.pdf} document}
+% \title{Power-efficient and Robust to Shifts Photo-oculography-based Eye-tracking Sensors}
+\title{Power-efficient and shift-robust eye-tracking sensor for portable VR headsets}
+%\titlenote{Produces the permission block, and
+%  copyright information}
+%\subtitle{Extended Abstract}
+%\subtitlenote{The full version of the author's guide is available as
+%  \texttt{acmart.pdf} document}
 
-\author{Ben Trovato}
-\authornote{Dr.~Trovato insisted his name be first.}
-\orcid{1234-5678-9012}
+\author{Dmytro Katrychuk}
 \affiliation{%
-  \institution{Institute for Clarity in Documentation}
-  \streetaddress{P.O. Box 1212}
-  \city{Dublin}
-  \state{Ohio}
-  \postcode{43017-6221}
-}
-\email{trovato@corporation.com}
-
-\author{G.K.M. Tobin}
-\authornote{The secretary disavows any knowledge of this author's actions.}
-\affiliation{%
-  \institution{Institute for Clarity in Documentation}
-  \streetaddress{P.O. Box 1212}
-  \city{Dublin}
-  \state{Ohio}
-  \postcode{43017-6221}
-}
-\email{webmaster@marysville-ohio.com}
-
-\author{Lars Th{\o}rv{\"a}ld}
-\authornote{This author is the
-  one who did all the really hard work.}
-\affiliation{%
-  \institution{The Th{\o}rv{\"a}ld Group}
-  \streetaddress{1 Th{\o}rv{\"a}ld Circle}
-  \city{Hekla}
-  \country{Iceland}}
-\email{larst@affiliation.org}
-
-\author{Valerie B\'eranger}
-\affiliation{%
-  \institution{Inria Paris-Rocquencourt}
-  \city{Rocquencourt}
-  \country{France}
-}
-\author{Aparna Patel}
-\affiliation{%
- \institution{Rajiv Gandhi University}
- \streetaddress{Rono-Hills}
- \city{Doimukh}
- \state{Arunachal Pradesh}
- \country{India}}
-\author{Huifen Chan}
-\affiliation{%
-  \institution{Tsinghua University}
-  \streetaddress{30 Shuangqing Rd}
-  \city{Haidian Qu}
-  \state{Beijing Shi}
-  \country{China}}
-
-\author{Charles Palmer}
-\affiliation{%
-  \institution{Palmer Research Laboratories}
-  \streetaddress{8600 Datapoint Drive}
-  \city{San Antonio}
+  \institution{Department of Computer Science, Texas State University}
+  \streetaddress{Derrick Hall M5, 601 University
+Drive}
+  \city{San Marcos}
   \state{Texas}
-  \postcode{78229}}
-\email{cpalmer@prl.com}
+  \postcode{78666}
+}
+\email{d_k139@txstate.edu}
+\author{Henry K. Griffith}
+\affiliation{%
+  \institution{Department of Computer Science, Texas State University}
+  \streetaddress{Derrick Hall M5, 601 University
+Drive}
+  \city{San Marcos}
+  \state{Texas}
+  \postcode{78666}
+}
+\email{h_g169@txstate.edu}
+\author{Oleg V. Komogortsev}
+\affiliation{%
+  \institution{Department of Computer Science, Texas State University}
+  \streetaddress{Derrick Hall M5, 601 University
+Drive}
+  \city{San Marcos}
+  \state{Texas}
+  \postcode{78666}
+}
+\email{ok@txstate.edu}
+% \authornote{Dr.~Trovato insisted his name be first.}
+% \orcid{1234-5678-9012}
 
-\author{John Smith}
-\affiliation{\institution{The Th{\o}rv{\"a}ld Group}}
-\email{jsmith@affiliation.org}
 
-\author{Julius P.~Kumquat}
-\affiliation{\institution{The Kumquat Consortium}}
-\email{jpkumquat@consortium.net}
+
+% \authornote{The secretary disavows any knowledge of this author's actions.}
+% \affiliation{%
+%   \institution{Department of Computer Science, Texas State University}
+%   \streetaddress{Comal Building 307D, 601 University
+% Drive}
+%   \city{San Marcos}
+%   \state{Texas}
+%   \postcode{78666}
+% }
+% \email{ok@txstate.edu}
 
 % The default list of authors is too long for headers.
-\renewcommand{\shortauthors}{B. Trovato et al.}
+\renewcommand{\shortauthors}{Katrychuk et al.}
 
 
 \begin{abstract}
-This paper provides a sample of a \LaTeX\ document which conforms,
-somewhat loosely, to the formatting guidelines for
-ACM SIG Proceedings.
+% Video oculography (VOG) is the most common method of eye tracking today. Due to VOG' high power consumption its usage is mostly restricted to wired solutions. However, headset mobility is important for many virtual reality (VR) applications. This paper pushes forward development and validation of photosensor oculography (PS-OG), an alternative eye-tracking technique that targets to enable low cost and low power eye-tracking in any portable VR headset. Its main drawback lies in drastic spatial accuracy degradation with even slight sensor shifts. In this work we employ machine learning to build a mapping between raw sensor outputs and eye gaze position to make PS-OG tolerant to shifts. We consider various neural network architectures and approaches to train them while restricting power consumption to meet the limitations of the embedded hardware. The results indicate that it is possible to achieve spatial accuracy on par with existing VOG solutions. Further evaluation without strict power limitations shows the potential of the proposed technology to replace current solutions---even wired setups---due to better spatial accuracy, higher sampling frequency and reduced overall power consumption.
+Current eye-tracking systems mainly employ video oculography. Due to the high power consumption of this approach, its usage is restricted to wired solutions; but mobility is important for many virtual reality (VR) applications. This paper validates photosensor oculography, an alternative eye-tracking technique that may enable eye-tracking in any portable VR headset. Its main drawback lies in drastic accuracy degradation with even slight sensor shifts. Applying machine learning to build a mapping between raw sensor outputs and eye gaze position helps to mitigate this problem. Various neural networks and approaches to train them are evaluated while restricting power consumption to meet the limitations of embedded hardware. Our results report spatial accuracy on par with existing video oculography solutions. Further evaluation without strict power limitations shows the potential of the proposed technology to replace current solutions---even wired setups---due to better accuracy and higher sampling frequency available.
 \end{abstract}
 
 %
@@ -126,50 +104,38 @@ ACM SIG Proceedings.
 %
 \begin{CCSXML}
 <ccs2012>
- <concept>
-  <concept_id>10010520.10010553.10010562</concept_id>
-  <concept_desc>Computer systems organization~Embedded systems</concept_desc>
-  <concept_significance>500</concept_significance>
- </concept>
- <concept>
-  <concept_id>10010520.10010575.10010755</concept_id>
-  <concept_desc>Computer systems organization~Redundancy</concept_desc>
-  <concept_significance>300</concept_significance>
- </concept>
- <concept>
-  <concept_id>10010520.10010553.10010554</concept_id>
-  <concept_desc>Computer systems organization~Robotics</concept_desc>
-  <concept_significance>100</concept_significance>
- </concept>
- <concept>
-  <concept_id>10003033.10003083.10003095</concept_id>
-  <concept_desc>Networks~Network reliability</concept_desc>
-  <concept_significance>100</concept_significance>
- </concept>
+<concept>
+<concept_id>10003120.10003121.10003124.10010866</concept_id>
+<concept_desc>Human-centered computing~Virtual reality</concept_desc>
+<concept_significance>500</concept_significance>
+</concept>
+<concept>
+<concept_id>10010583.10010662.10010674</concept_id>
+<concept_desc>Hardware~Power estimation and optimization</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10010583.10010717.10010721.10010725</concept_id>
+<concept_desc>Hardware~Simulation and emulation</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
 </ccs2012>
 \end{CCSXML}
 
-\ccsdesc[500]{Computer systems organization~Embedded systems}
-\ccsdesc[300]{Computer systems organization~Redundancy}
-\ccsdesc{Computer systems organization~Robotics}
-\ccsdesc[100]{Networks~Network reliability}
+\ccsdesc[500]{Human-centered computing~Virtual reality}
+\ccsdesc[300]{Hardware~Power estimation and optimization}
+\ccsdesc[300]{Hardware~Simulation and emulation}
 
 
-\keywords{ACM proceedings, \LaTeX, text tagging}
-
-\begin{teaserfigure}
-  \includegraphics[width=\textwidth]{sampleteaser}\Description{A
-    baseball field}
-  \caption{This is a teaser}
-  \label{fig:teaser}
-\end{teaserfigure}
-
+\keywords{eye-tracking, virtual reality, VR, photo-sensor oculography, PSOG, machine learning, ML}
 
 \maketitle
 
 \input{samplebody-conf}
 
 \bibliographystyle{ACM-Reference-Format}
+%\bibliographystyle{unsrt}
+\clearpage
 \bibliography{references}
 
 \end{document}
