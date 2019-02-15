@@ -1,3 +1,6 @@
+import os
+import sys
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
@@ -5,14 +8,14 @@ from plotly.offline import plot
 from scipy.stats.stats import pearsonr
 
 
-def plot_pos(data, filename):
+def plot_pos(data, filename, auto_open=True):
     data.drop(data[data.index > 3750].index, inplace=True)
     trace_hor = go.Scatter(
         # x=data['Timestamp'],
         x=data.index,
         y=data['GazePointXLeft'],
         mode='lines',
-        name='horizontal'
+        name='horizontal',
     )
     trace_ver = go.Scatter(
         # x=data['Timestamp'],
@@ -21,7 +24,7 @@ def plot_pos(data, filename):
         mode='lines',
         name='vertical'
     )
-    plot([trace_hor, trace_ver], filename=filename)
+    plot([trace_hor, trace_ver], filename=filename, auto_open=auto_open)
 
 def calc_radial_velocity(data):
     timestamp = data.index
@@ -29,6 +32,7 @@ def calc_radial_velocity(data):
 
     pos_x = data['GazePointXLeft'].values
     pos_y = data['GazePointYLeft'].values
+    data['rp'] = np.sqrt(pos_x ** 2 + pos_y ** 2)
     dpx = np.array(np.roll(pos_x, -1, axis=0) - pos_x)[:-1]
     dpy = np.array(np.roll(pos_y, -1, axis=0) - pos_y)[:-1]
     drp = np.sqrt(dpx ** 2 + dpy ** 2)
@@ -58,11 +62,11 @@ def calc_and_plot_vel(data, filename):
     
     data = calc_radial_velocity(data)
 
-    print(data[data.dv > 5])
+    print(data[data.drv > 5])
 
     trace = go.Scatter(
         x=data.index,
-        y=data['dv'],
+        y=data['drv'],
         mode='lines',
         name='horizontal'
     )
@@ -76,7 +80,7 @@ def get_calib_fixations(data):
         data[data.drv > 5].index.values,
         [data.index[-1] + 1]
     ))
-    LEN_THRESH = 30
+    LEN_THRESH = 60
     for i in range(len(boundaries) - 1):
         onset = boundaries[i] + 1
         offset = boundaries[i + 1] - 1
@@ -107,47 +111,94 @@ def convert_fixations_pix_to_deg(data):
     
     return data
 
-def plots(sig_data, fix_data):
-    plot_pos(sig_data, 'signal_pos')
-    plot_pos(fix_data, 'fixations_pos')
-
-    calc_and_plot_vel(sig_data, 'signal_velocity')
-    calc_and_plot_vel(fix_data, 'fixations_velocity')
-
-def find_best_corr(sig_data, fix_data, fix_pos):
-    sig_data = calc_velocity(sig_data)
-    fix_data = calc_velocity(fix_data)
+def find_best_corr(sig_data, fix_data, fix_pos, start=0):
+    sig_data = calc_radial_velocity(sig_data)
+    fix_data = calc_radial_velocity(fix_data)
 
     on, off = fix_pos
     fix_len = off - on + 1
 
     best_corr = 0.
-    best_shift = 0
-    for b in range(len(sig_data.index) - fix_len):
+    best_on = best_off = 0
+    N_CORR = 30
+    for b in range(start, len(sig_data.index) - fix_len):
         corr, _ = pearsonr(
-            sig_data[b: b + fix_len]['dv'].values,
-            fix_data[on: off + 1]['dv'].values
+            # TODO: attemp to overcome hole in the signal
+            sig_data[b: b + N_CORR]['rp'].values,
+            fix_data[on: on + N_CORR]['rp'].values
         )
         if corr > best_corr:
             best_corr = corr
-            best_shift = b
+            best_on = b
+
+    best_corr = 0.
+    HOW_FAR = 2*fix_len
+    for e in range(best_on, min(best_on + HOW_FAR, len(sig_data.index))):
+        corr, _ = pearsonr(
+            # TODO: attemp to overcome hole in the signal
+            sig_data[e: e - N_CORR: -1]['rp'].values,
+            fix_data[off: off - N_CORR: -1]['rp'].values
+        )
+        if corr > best_corr:
+            best_corr = corr
+            best_off = e
     
-    return best_shift, best_shift + fix_len
+    return best_corr, best_on, best_off
+
+def plot_subj_calib(subj_root):
+    print('Matching calibration signals for: ', subj_root)
+    tsv_file = None
+    for filename in os.listdir(subj_root):
+        if filename.endswith('.tsv'):
+            tsv_file = filename
+    
+    tsv_path = os.path.join(subj_root, tsv_file)
+    signal_data = pd.read_csv(tsv_path, sep='\t')
+    
+    txt_path = os.path.join(subj_root, 'calib_fixations.txt')
+    fixations_data = pd.read_csv(
+        txt_path,
+        sep='\t', skiprows=4, header=None
+    )
+    
+    signal_data.loc[signal_data.ValidityLeft == 4] = np.nan
+    fixations_data = convert_fixations_pix_to_deg(fixations_data)
+
+    html_dir = os.path.join(subj_root, 'html')
+    if not os.path.exists(html_dir):
+        os.mkdir(html_dir)
+
+    fix_sig_map = []
+    for ind, fixation in enumerate(get_calib_fixations(fixations_data)):
+        corr, b, e = find_best_corr(signal_data, fixations_data, fixation)
+        on, off = fixation
+        fix_sig_map.append((b, e, on, off, corr))
+        
+        sig_filename = os.path.join(html_dir, str(ind) + '_sig_corr')
+        fix_filename = os.path.join(html_dir, str(ind) + '_fix_corr')
+        
+        plot_pos(signal_data[b: e + 1], sig_filename, False)
+        plot_pos(fixations_data[on: off + 1], fix_filename, False)
+    
+    calib_data = pd.DataFrame(
+        np.nan,
+        index=signal_data.index, columns=signal_data.columns
+    )
+
+    for m in fix_sig_map:
+        b, e, _, _, _ = m
+        calib_data[b: e + 1] = signal_data[b: e + 1] 
+        
+    data_path = os.path.join(subj_root, 'calib.csv')
+    calib_data.to_csv(data_path, sep='\t', na_rep=np.nan)
+
+    print(fix_sig_map)
+
+def plot_dataset(root):
+    for subj in os.listdir(root):
+        subj_root = os.path.join(root, subj)
+        plot_subj_calib(subj_root)
 
 
 if __name__ == '__main__':
-    signal_data = pd.read_csv('DOT-R51.tsv', sep='\t')
-    signal_data.loc[signal_data.ValidityLeft == 4] = np.nan
-
-    fixations_data = pd.read_csv(
-        'calib_fixations.txt',
-        sep='\t', skiprows=4, header=None
-    )
-    fixations_data = convert_fixations_pix_to_deg(fixations_data)
-
-    for ind, fixation in enumerate(get_calib_fixations(fixations_data)):
-        b, e = find_best_corr(signal_data, fixations_data, fixation)
-        print(b, e)
-        on, off = fixation
-        plot_pos(signal_data[b: e], str(ind) + '_sig_corr_test')
-        plot_pos(fixations_data[on: off + 1], str(ind) +  '_fix_corr_test')
+    plot_dataset(sys.argv[1])
