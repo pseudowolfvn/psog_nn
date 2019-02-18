@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import time
 
+from keras import backend as K
 from keras.callbacks import EarlyStopping
 from keras.layers.convolutional import Conv2D
 from keras.layers.core import Dense, Flatten
@@ -77,7 +78,8 @@ class MLP(Model):
 
 # TODO: rewrite to factory
 def build_model(params):
-    arch = get_arch(params)
+    K.clear_session()
+    arch = get_arch(params) 
     if arch == 'mlp':
         return MLP(*params[-2:])
     if arch == 'cnn':

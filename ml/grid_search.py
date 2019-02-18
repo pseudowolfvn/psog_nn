@@ -24,16 +24,13 @@ def get_best_model_params(arch, setup):
             for line in log.readlines():
                 if line[0] == '(':
                     nums = line[1:-2].split(', ')
-                    # for low-power setup only
-                    # log contains FLOPS complexity of the model
-                    if setup == 'lp':
-                        nums = nums[:-1]
                     if arch == 'mlp':
                         params = tuple(map(int, nums[-2:]))
-                        # workaround for old ETRA-like style of grid-search log
+                        # workaround for old ETRA-like style of log
                         params = (0, 0) + params
                     elif arch == 'cnn':
                         params = tuple(map(int, nums[-4:]))
+                    break
 
     if params is None:
         print('Log file with grid-search results doesn\'t exist!')
