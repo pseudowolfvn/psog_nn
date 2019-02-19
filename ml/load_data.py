@@ -78,7 +78,7 @@ def get_specific_data(root, test_subjs, subj, arch, load_normalizer):
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 def split_test_from_all(test_subjs):
-    data = [str(i) for i in range(1, 23 + 1) if i != 9]
+    data = [str(i) for i in range(1, 23 + 1)]
     train_subjs = []
     for subj in data:
         if subj not in test_subjs:
