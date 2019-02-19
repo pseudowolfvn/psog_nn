@@ -14,7 +14,7 @@ from ml.utils import get_module_prefix
 from utils.utils import get_arch
 
 
-def evaluate_approaches(root, test_subjs, params, setup, redo, REPS=1):
+def evaluate_approaches(root, test_subjs, params, setup, redo, REPS=10):
     results_dir = os.path.join(get_module_prefix(), 'results')
     if not os.path.exists(results_dir):
         os.mkdir(results_dir)
