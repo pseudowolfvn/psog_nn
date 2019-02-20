@@ -91,8 +91,8 @@ def evaluate_study(root, archs, setups, redo=True):
     for arch in archs:
         for setup in setups:
             params = get_best_model_params(arch, setup)
-            for subjs in subjs_split:
-                cross_testing(root, subjs, params, setup, redo)
+            for test_subjs in subjs_split:
+                cross_testing(root, test_subjs, params, setup, redo)
 
 if __name__ == "__main__":
     #evaluation(['mlp', 'cnn'], ['lp', 'hp'])

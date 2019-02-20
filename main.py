@@ -12,6 +12,7 @@ from ml.eval import evaluate_study
 from plots.boxplots_per_subject import plot_boxplots
 from plots.error_bars import plot_error_bars
 from plots.samples_distrib import draw_samples
+from utils.utils import none_if_empty, list_if_not
 
 
 def add_subjs_argument(parser, arg_name, help_str):
@@ -117,12 +118,6 @@ def build_subparsers():
     add_setups_argument(plot)
 
     return parser
-
-def none_if_empty(it):
-    return None if not it else it
-
-def list_if_not(x):
-    return [x] if not isinstance(x, list) else x
 
 def run_cli():
     parser = build_subparsers()

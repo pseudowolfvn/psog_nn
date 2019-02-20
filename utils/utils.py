@@ -86,3 +86,9 @@ def calc_pad_size(img, top_lefts, shapes):
     padding = 0 if overrun > 0 else -overrun
 
     return top_lefts + padding, padding
+
+def none_if_empty(it):
+    return None if not it else it
+
+def list_if_not(x):
+    return [x] if not isinstance(x, list) else x

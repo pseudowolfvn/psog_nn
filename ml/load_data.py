@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 
 from ml.utils import filter_outliers, normalize
 from preproc.psog import PSOG
+from utils.utils import list_if_not
 
 
 def get_subj_data(subj_root, sensor=None):
@@ -27,6 +28,9 @@ def get_subj_data(subj_root, sensor=None):
     return X, y
 
 def get_data(root, subj_ids=None):
+    # when only one id is provided we shouldn't consider it as iterable
+    subj_ids = list_if_not(subj_ids)
+
     X_data = []
     y_data = []
     sensor = PSOG()
