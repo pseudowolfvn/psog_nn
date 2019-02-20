@@ -55,14 +55,12 @@ def grid_search_arch_setup(
         # TODO: read the best model from log and return it
         return
 
-    log = open(log_path, 'w')
-
     X_train, X_val, X_test, y_train, y_val, y_test = \
         get_general_data(root, train_subjs, test_subjs, arch)
     n_pca = X_train.shape[1]
 
     models = []
-
+    log = open(log_path, 'w')
     print('Grid-search for architecture:', arch, ', setup:', setup)
 
     if 'conv_layers' not in search_space:
