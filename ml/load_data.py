@@ -28,8 +28,10 @@ def get_subj_data(subj_root, sensor=None):
     return X, y
 
 def get_data(root, subj_ids=None):
-    # when only one id is provided we shouldn't consider it as iterable
-    subj_ids = list_if_not(subj_ids)
+    # when only one id is provided we shouldn't
+    # consider it as iterable but enclose in the list
+    if subj_ids is not None:
+        subj_ids = list_if_not(subj_ids)
 
     X_data = []
     y_data = []
