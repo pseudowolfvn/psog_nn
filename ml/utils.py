@@ -25,32 +25,16 @@ def filter_outliers(data, verbose=False):
         print(outliers)
     return data.drop(outliers.index)
 
-def normalize(X_train, X_test, subjs, arch, load=True):
-    norm_dir = os.path.join(get_module_prefix(), 'pca')
-    if not os.path.exists(norm_dir):
-        os.mkdir(norm_dir)
-    norm_path = os.path.join(norm_dir, 'normalizer_' + str(subjs) + '.pkl')
-
+def normalize(X_train, X_test, arch):
+    # we only want to do data whitening for CNN architecture
     pca_params = {
+        'n_components': None if arch == 'cnn' else 0.99,
         'whiten': True,
         'random_state': 0o62217
     }
-    # we only want to do data whitening for CNN architecture
-    # and don't want to save the result for further reuse
-    if arch == 'cnn':
-        normalizer = PCA(
-            n_components=None,
-            **pca_params)
-        normalizer.fit(X_train)
-    else:
-        if load and os.path.exists(norm_path):
-            normalizer = joblib.load(norm_path)
-        else:
-            normalizer = PCA(
-                n_components=0.99,
-                **pca_params)
-            normalizer.fit(X_train)
-            joblib.dump(normalizer, norm_path)
+    
+    normalizer = PCA(**pca_params)
+    normalizer.fit(X_train)
 
     X_train = normalizer.transform(X_train)
     X_test = normalizer.transform(X_test)

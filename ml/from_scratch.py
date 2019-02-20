@@ -9,7 +9,7 @@ from utils.utils import get_arch
 def train_from_scratch(root, subj, params):
     # TODO: change True back to False
     X_train, X_val, X_test, y_train, y_val, y_test = \
-        get_specific_data(root, subj, subj, get_arch(params), True)
+        get_specific_data(root, subj, get_arch(params))
 
     model = build_model(params)
     fit_time = model.train(

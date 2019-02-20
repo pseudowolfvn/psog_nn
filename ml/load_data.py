@@ -56,7 +56,7 @@ def reshape_into_grid(X_train, X_val, X_test):
 def get_general_data(root, train_subjs, test_subjs, arch):
     X_train, y_train = get_data(root, train_subjs)
     X_test, y_test = get_data(root, test_subjs)
-    X_train, X_test = normalize(X_train, X_test, test_subjs, arch)
+    X_train, X_test = normalize(X_train, X_test, arch)
 
     # train_val_split
     X_train, X_val, y_train, y_val = train_test_split(
@@ -67,14 +67,11 @@ def get_general_data(root, train_subjs, test_subjs, arch):
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 
-def get_specific_data(root, test_subjs, subj, arch, load_normalizer):
+def get_specific_data(root, subj, arch):
     X_train, y_train = get_data(root, subj)
     X_train, X_test, y_train, y_test = train_test_split(
         X_train, y_train, test_size=0.7, random_state=42)
-    X_train, X_test = normalize(
-        X_train, X_test,
-        test_subjs, arch, load_normalizer
-    )
+    X_train, X_test = normalize(X_train, X_test, arch)
     X_train, X_val, y_train, y_val = train_test_split(
         X_train, y_train, test_size=0.2, random_state=42)
 

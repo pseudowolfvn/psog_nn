@@ -29,7 +29,7 @@ def train_and_save(root, train_subjs, test_subjs, params, load=False):
 
 def load_and_finetune(root, test_subjs, subj, params):
     X_train, X_val, X_test, y_train, y_val, y_test = \
-        get_specific_data(root, test_subjs, subj, get_arch(params), True)
+        get_specific_data(root, subj, get_arch(params))
 
     model = build_model(params)
     model_path = get_model_path(test_subjs, params)
@@ -57,7 +57,7 @@ def load_and_finetune_fc(root, test_subjs, subj, params):
         return
 
     X_train, X_val, X_test, y_train, y_val, y_test = \
-        get_specific_data(root, test_subjs, subj, 'cnn', True)
+        get_specific_data(root, subj, 'cnn')
 
     model = build_model(params)
     model_path = get_model_path(test_subjs, params)
