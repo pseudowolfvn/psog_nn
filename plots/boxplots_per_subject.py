@@ -26,7 +26,7 @@ def plot_subjs(data, subjs, arch_params, setup):
         subplot_titles=['Subject ' + subj for subj in subjs]
     )
 
-    cm = plotly_color_map(['ft', 'ft_fc', 'scr'])
+    cm = plotly_color_map(['ft', 'scr'])
 
     arch = get_arch(arch_params)
     legend = True
@@ -38,15 +38,6 @@ def plot_subjs(data, subjs, arch_params, setup):
             boxmean='sd', showlegend=legend
         )
         fig.append_trace(ft, ind // COLS + 1, ind % COLS + 1)
-
-        if arch == 'cnn':
-            # ft_fc_time = round(np.mean(data[subj]['ft_fc']['time']), 2)
-            ft_fc = go.Box(
-                y=data[subj]['ft_fc']['data'], name='Finetune FC',
-                legendgroup='ft_fc', marker={'color': cm['ft_fc']},
-                boxmean='sd', showlegend=legend
-            )
-            fig.append_trace(ft_fc, ind // COLS + 1, ind % COLS + 1)
 
         # scr_time = round(np.mean(data[subj]['scr']['time']), 2)
         scr = go.Box(

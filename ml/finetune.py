@@ -28,52 +28,26 @@ def train_and_save(root, train_subjs, test_subjs, params, load=False):
     print('Test acc: ', test_acc)
 
 def load_and_finetune(root, test_subjs, subj, params):
+    arch = get_arch(params)
+
     X_train, X_val, X_test, y_train, y_val, y_test = \
-        get_specific_data(root, subj, get_arch(params))
+        get_specific_data(root, subj, arch)
 
     model = build_model(params)
     model_path = get_model_path(test_subjs, params)
     model.load_weights(model_path)
 
+    if arch == 'cnn':
+        model.freeze_conv()
+
     print('Model ' + model_path + ' loaded')
 
     fit_time = model.train(
         X_train, y_train, X_val, y_val,
-        epochs=1000,
-        batch_size=200,
-        patience=50
+        batch_size=200, patience=50
     )
 
     print('Partial fit completed')
-    train_acc, test_acc, _ = model.report_acc(X_train, y_train, X_test, y_test)
-    print('Train acc: ', train_acc)
-    print('Test acc: ', test_acc)
-
-    return train_acc, test_acc, fit_time
-
-def load_and_finetune_fc(root, test_subjs, subj, params):
-    if get_arch(params) != 'cnn':
-        print('Can be called only for CNN!')
-        return
-
-    X_train, X_val, X_test, y_train, y_val, y_test = \
-        get_specific_data(root, subj, 'cnn')
-
-    model = build_model(params)
-    model_path = get_model_path(test_subjs, params)
-    model.load_weights(model_path)
-
-    model.freeze_conv()
-
-    print('Model ' + model_path + ' loaded')
-
-    fit_time = model.train(
-        X_train, y_train, X_val, y_val,
-        epochs=1000,
-        batch_size=2000,
-        patience=50
-    )
-
     train_acc, test_acc, _ = model.report_acc(X_train, y_train, X_test, y_test)
     print('Train acc: ', train_acc)
     print('Test acc: ', test_acc)

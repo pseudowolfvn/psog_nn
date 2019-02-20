@@ -106,7 +106,7 @@ def convert_to_groups(mlp_data, cnn_data):
         groups = accumulate_group(groups, data, subj, 'mlp', 'ft')
         groups = accumulate_group(groups, data, subj, 'mlp', 'scr')
 
-        groups = accumulate_group(groups, data, subj, 'cnn', 'ft_fc')
+        groups = accumulate_group(groups, data, subj, 'cnn', 'ft')
         groups = accumulate_group(groups, data, subj, 'cnn', 'scr')
 
     groups['subj'] = groups['subj'].astype(int)

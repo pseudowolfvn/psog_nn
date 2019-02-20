@@ -6,7 +6,7 @@ import sys
 import numpy as np
 from sklearn.externals import joblib
 
-from ml.finetune import train_and_save, load_and_finetune, load_and_finetune_fc
+from ml.finetune import train_and_save, load_and_finetune
 from ml.from_scratch import train_from_scratch
 from ml.grid_search import get_best_model_params
 from ml.load_data import split_test_from_all
@@ -31,8 +31,6 @@ def evaluate_approaches(root, test_subjs, params, setup, redo, REPS=10):
     for subj in test_subjs:
         ft = np.zeros((REPS))
         ft_time = np.zeros((REPS))
-        ft_fc = np.zeros((REPS))
-        ft_fc_time = np.zeros((REPS))
         scr = np.zeros((REPS))
         scr_time = np.zeros((REPS))
 
@@ -45,15 +43,6 @@ def evaluate_approaches(root, test_subjs, params, setup, redo, REPS=10):
         data[subj]['ft'] = {}
         data[subj]['ft']['data'] = ft
         data[subj]['ft']['time'] = ft_time
-
-        if get_arch(params) == 'cnn':
-            for i in range(REPS):
-                _, acc, t = load_and_finetune_fc(root, test_subjs, subj, params)
-                ft_fc[i] = acc
-                ft_fc_time[i] = t
-            data[subj]['ft_fc'] = {}
-            data[subj]['ft_fc']['data'] = ft_fc
-            data[subj]['ft_fc']['time'] = ft_fc_time
 
         for i in range(REPS):
             _, acc, t = train_from_scratch(root, subj, params)

@@ -14,7 +14,7 @@ def train_from_scratch(root, subj, params):
     model = build_model(params)
     fit_time = model.train(
         X_train, y_train, X_val, y_val,
-        batch_size=2000
+        batch_size=200, patience=50
     )
 
     print('Model ' + get_model_path(subj, params) + ' trained from scratch')
