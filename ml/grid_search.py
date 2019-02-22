@@ -123,21 +123,21 @@ def grid_search(root, archs, setups, redo=True):
             },
             'hp': {
                 'layers': [3, 4, 5, 6],
-                'neurons': [16, 32, 48, 64, 96, 128]
+                'neurons': [16, 32, 48, 64, 96]
             },
         },
         'cnn': {
             'lp': {
                 'conv_layers': [1, 2, 4],
                 'conv_depth': [4, 8, 16],
-                'layers': [3, 4, 5, 6],
+                'layers': [3, 4, 5],
                 'neurons': [16, 20, 24, 28, 32]
             },
             'hp': {
                 'conv_layers': [1, 2, 4],
                 'conv_depth': [4, 8, 16],
-                'layers': [3, 4, 5, 6],
-                'neurons': [16, 32, 48, 64, 96, 128]
+                'layers': [3, 4, 5],
+                'neurons': [16, 32, 48, 64, 96]
             },
         },
     }
