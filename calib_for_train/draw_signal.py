@@ -145,7 +145,7 @@ def find_best_corr(sig_data, fix_data, fix_pos, start=0):
     
     return best_corr, best_on, best_off
 
-def plot_subj_calib(subj_root):
+def plot_subj_calib(subj_root, plot=True):
     print('Matching calibration signals for: ', subj_root)
     tsv_file = None
     for filename in os.listdir(subj_root):
@@ -176,23 +176,29 @@ def plot_subj_calib(subj_root):
         
         sig_filename = os.path.join(html_dir, str(ind) + '_sig_corr')
         fix_filename = os.path.join(html_dir, str(ind) + '_fix_corr')
-        
-        plot_pos(signal_data[b: e + 1], sig_filename, False)
-        plot_pos(fixations_data[on: off + 1], fix_filename, False)
+
+        if plot:
+            plot_pos(signal_data[b: e + 1], sig_filename, False)
+            plot_pos(fixations_data[on: off + 1], fix_filename, False)
     
     calib_data = pd.DataFrame(
         np.nan,
         index=signal_data.index, columns=signal_data.columns
     )
 
+    max_disp = 0
     for m in fix_sig_map:
         b, e, _, _, _ = m
-        calib_data[b: e + 1] = signal_data[b: e + 1] 
+        calib_data[b: e + 1] = signal_data[b: e + 1]
+        disp = signal_data[b: e + 1]['rp'].dropna().max() - signal_data[b: e + 1]['rp'].dropna().min()
+        if disp > max_disp:
+            max_disp = disp 
         
     data_path = os.path.join(subj_root, 'calib.csv')
     calib_data.to_csv(data_path, sep='\t', na_rep=np.nan)
 
     print(fix_sig_map)
+    print('subj_root disp:', disp)
 
 def plot_dataset(root):
     for subj in os.listdir(root):
