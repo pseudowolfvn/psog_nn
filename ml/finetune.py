@@ -9,7 +9,7 @@ from utils.utils import get_arch
 
 
 def train_and_save(root, train_subjs, test_subjs, params, load=False):
-    model_path = get_model_path(test_subjs, params)
+    model_path = get_model_path(train_subjs, params)
     model = build_model(params)
 
     if load and os.path.exists(model_path):
@@ -27,14 +27,14 @@ def train_and_save(root, train_subjs, test_subjs, params, load=False):
     print('Train acc: ', train_acc)
     print('Test acc: ', test_acc)
 
-def load_and_finetune(root, test_subjs, subj, params):
+def load_and_finetune(root, train_subjs, subj, params):
     arch = get_arch(params)
 
     X_train, X_val, X_test, y_train, y_val, y_test = \
-        get_specific_data(root, subj, arch)
+        get_specific_data(root, subj, arch, train_subjs)
 
     model = build_model(params)
-    model_path = get_model_path(test_subjs, params)
+    model_path = get_model_path(train_subjs, params)
     model.load_weights(model_path)
 
     if arch == 'cnn':

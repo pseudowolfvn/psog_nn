@@ -14,7 +14,7 @@ from ml.utils import get_module_prefix
 from utils.utils import get_arch
 
 
-def evaluate_approaches(root, test_subjs, params, setup, redo, REPS=10):
+def evaluate_approaches(root, train_subjs, test_subjs, params, setup, redo, REPS=10):
     results_dir = os.path.join(get_module_prefix(), 'results')
     if not os.path.exists(results_dir):
         os.mkdir(results_dir)
@@ -35,7 +35,7 @@ def evaluate_approaches(root, test_subjs, params, setup, redo, REPS=10):
         scr_time = np.zeros((REPS))
 
         for i in range(REPS):
-            _, acc, t = load_and_finetune(root, test_subjs, subj, params)
+            _, acc, t = load_and_finetune(root, train_subjs, subj, params)
             ft[i] = acc
             ft_time[i] = t
 
@@ -66,7 +66,7 @@ def cross_testing(root, test_subjs, params, setup, redo):
     print('Train on: ', train_subjs, 'Test on: ', test_subjs)
 
     train_and_save(root, train_subjs, test_subjs, params, load=True)
-    evaluate_approaches(root, test_subjs, params, setup, redo)
+    evaluate_approaches(root, train_subjs, test_subjs, params, setup, redo)
 
 def evaluate_study(root, archs, setups, redo=True):
     subjs_split = [
