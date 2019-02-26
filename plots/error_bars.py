@@ -12,6 +12,8 @@ from .utils import calc_stats, convert_to_groups, \
 
 
 FONT_SIZE = 18
+Y_AXIS_FONT_SIZE = 14
+
 
 def get_trace_for_group(mean, std, color, label):
     return go.Scatter(
@@ -25,7 +27,7 @@ def get_trace_for_group(mean, std, color, label):
         ),
         mode='markers+text',
         marker={'color': color},
-        text=[str(round(mean, 4)) + u' \u00B1 ' + str(round(std, 4))],
+        text=[str(round(mean, 3)) + u' \u00B1 ' + str(round(std, 3))],
         textposition='middle right',
         textfont={
             'size': FONT_SIZE,
@@ -73,8 +75,9 @@ def plot_setup(root, setup):
             },
             yaxis={
                 'dtick': 0.05,
+                'range': [0.4, 1.3],
                 'tickfont': {
-                    'size': FONT_SIZE
+                    'size': Y_AXIS_FONT_SIZE
                 }
             }
         )
