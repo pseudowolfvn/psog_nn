@@ -100,15 +100,21 @@ def convert_fixations_pix_to_deg(data):
             np.arctan((data - pix/2.) * mm/pix / dist) / np.pi * 180.
         return conv(x, w_pix, w_mm, dist_mm), \
             -conv(y, h_pix, h_mm, dist_mm)
+    def convert(pixs):
+        degs = np.zeros(pixs.shape)
+        for ind, pix in enumerate(pixs):
+            degs[ind] = pix_to_deg(pix)
+        return degs
+
+    pos_degs = convert(data[[6, 7]].values)
+    tar_degs = convert(data[[0, 1]].values)
+
+    data['GazePointXLeft'] = pos_degs[:, 0]
+    data['GazePointYLeft'] = pos_degs[:, 1]
     
-    pixels = data[[6, 7]].values
-    degs = np.zeros(pixels.shape)
-    for ind, pix in enumerate(pixels):
-        degs[ind] = pix_to_deg(pix)
-    
-    data['GazePointXLeft'] = degs[:, 0]
-    data['GazePointYLeft'] = degs[:, 1]
-    
+    data['tar_x'] = tar_degs[:, 0]
+    data['tar_y'] = tar_degs[:, 1]
+
     return data
 
 def find_best_corr(sig_data, fix_data, fix_pos, start=0):
@@ -185,26 +191,34 @@ def plot_subj_calib(subj_root, plot=True):
         np.nan,
         index=signal_data.index, columns=signal_data.columns
     )
+    target_data = pd.DataFrame(
+        np.nan,
+        index=signal_data.index, columns=['tar_x', 'tar_y']
+    )
 
     max_disp = 0
     for m in fix_sig_map:
-        b, e, _, _, _ = m
+        b, e, on, off, _ = m
         calib_data[b: e + 1] = signal_data[b: e + 1]
+        target_data.iloc[b: e + 1, :] = fixations_data[['tar_x', 'tar_y']].values[on]
         disp = signal_data[b: e + 1]['rp'].dropna().max() - signal_data[b: e + 1]['rp'].dropna().min()
         if disp > max_disp:
-            max_disp = disp 
-        
-    data_path = os.path.join(subj_root, 'calib.csv')
+            max_disp = disp
+    calib_data = calib_data.join(target_data)
+
+    data_path = os.path.join(subj_root, 'FullSignal.csv')
     calib_data.to_csv(data_path, sep='\t', na_rep=np.nan)
 
     print(fix_sig_map)
     print('subj_root disp:', disp)
 
-def plot_dataset(root):
-    for subj in os.listdir(root):
-        subj_root = os.path.join(root, subj)
-        plot_subj_calib(subj_root)
+def plot_dataset(root, subj_ids=None):
+    for dirname in os.listdir(root):
+        if subj_ids is not None and dirname not in subj_ids:
+            continue
+        subj_root = os.path.join(root, dirname)
+        plot_subj_calib(subj_root, False)
 
 
 if __name__ == '__main__':
-    plot_dataset(sys.argv[1])
+    plot_dataset(sys.argv[1], ['Record 15'])
