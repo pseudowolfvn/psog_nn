@@ -54,9 +54,9 @@ python main.py {preproc,ml,plot} [-h]
 	1. To run the PSOG simulation only for subject 12, with dataset in the custom directory, use:
 ```$ python main.py --root ~/dev/research/psog_nn/dataset preproc --psog 12```
 2. To run the whole machine learning part, use: 
-```$ python main.py ml --grid-search --evaluate```
+```$ python main.py ml --grid_search --evaluate```
 	1. To run the grid-search only for 'MLP' architecture, low-power setup, use:
-```$ python main.py ml --grid-search --arch mlp --setup lp```
+```$ python main.py ml --grid_search --arch mlp --setup lp```
 3. To create all plots used in the paper, use:
 ```$ python main.py plot --error_bars --samples_distrib```
 	1. To create additional boxplots of spatial accuracy for per subject evaluation, use:
@@ -67,8 +67,7 @@ python main.py {preproc,ml,plot} [-h]
 ## Notes:
 
 1. Grid-search and evaluation are very time-consuming tasks. It may take up to one week to reproduce them all. 
-	
-	Note that the learning process become much slower in time. Probably, inefficent garbage collector in Keras is involved?
+
 2. Backup of all results obtained for ETRA 2019 paper is provided in 'etra2019_full_results.zip' archive. To use them (for example, to plot or analyse the results), just unpack the archive to the project directory. 
 
 	Note that files included were obtained using older version of the software (with the bug of incorrect time saved in the last part of a grid-search log) and their names are changed to adhere to new naming conventions.
