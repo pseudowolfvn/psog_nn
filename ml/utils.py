@@ -6,6 +6,15 @@ from sklearn.decomposition import PCA
 from sklearn.externals import joblib
 
 
+def default_config_if_none(learning_config):
+    if learning_config is None:
+        learning_config = {
+            'batch_size': 200,
+            'epochs': 1000,
+            'patience': 50,
+        }
+    return learning_config
+
 def get_module_prefix():
     return 'ml'
 

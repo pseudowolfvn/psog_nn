@@ -14,75 +14,93 @@ from ml.utils import get_module_prefix
 from utils.utils import get_arch
 
 
-def evaluate_approaches(root, train_subjs, test_subjs, params, setup, redo, REPS=10):
-    results_dir = os.path.join(get_module_prefix(), 'results')
-    if not os.path.exists(results_dir):
-        os.mkdir(results_dir)
-    data_path = os.path.join(
-        results_dir,
-        str(setup) + '_' + str(params) + '_' + str(test_subjs) + '.pkl'
-    )
+class StudyEvaluation:
+    def __init__(self, root, archs, setups, study_id='', redo=True):
+        self.root = root
+        self.archs = archs
+        self.setups = setups
+        self.study_id = study_id
+        self.redo = redo
 
-    if not redo and os.path.exists(data_path):
-        print('Evaluation results', data_path, 'already exists, skip')
-        return
+        self.subjs_split = [
+            ['1', '2', '3', '4'],
+            ['5', '6', '7', '8'],
+            ['9', '10', '11', '12'],
+            ['13', '14', '15', '16'],
+            ['17', '18', '19', '20'],
+            ['21', '22', '23']
+        ]
+    
+    def pretrain_model(self, train_subjs, test_subjs, params):
+        train_and_save(self.root, train_subjs, test_subjs, params, load=True)
 
-    data = {'subjs': test_subjs}
-    for subj in test_subjs:
-        ft = np.zeros((REPS))
-        ft_time = np.zeros((REPS))
-        scr = np.zeros((REPS))
-        scr_time = np.zeros((REPS))
+    def _evaluate_approaches(
+        self, train_subjs, test_subjs,
+        params, setup, learning_config, REPS, redo
+    ):
+        results_dir = os.path.join(get_module_prefix(), 'results')
+        if not os.path.exists(results_dir):
+            os.mkdir(results_dir)
+        data_name = str(self.study_id) + '_' + \
+            str(setup) + '_' + str(params) + '_' + \
+            str(test_subjs) + '.pkl'
+        data_path = os.path.join(results_dir, data_name)
 
-        for i in range(REPS):
-            _, acc, t = load_and_finetune(root, train_subjs, subj, params)
-            ft[i] = acc
-            ft_time[i] = t
+        if not redo and os.path.exists(data_path):
+            print('Evaluation results', data_path, 'already exists, skip')
+            return
 
-        data[subj] = {}
-        data[subj]['ft'] = {}
-        data[subj]['ft']['data'] = ft
-        data[subj]['ft']['time'] = ft_time
+        data = {'subjs': test_subjs}
+        for subj in test_subjs:
+            ft = np.zeros((REPS))
+            ft_time = np.zeros((REPS))
+            scr = np.zeros((REPS))
+            scr_time = np.zeros((REPS))
 
-        for i in range(REPS):
-            _, acc, t = train_from_scratch(root, subj, params)
-            scr[i] = acc
-            scr_time[i] = t
-        data[subj]['scr'] = {}
-        data[subj]['scr']['data'] = scr
-        data[subj]['scr']['time'] = scr_time
+            for i in range(REPS):
+                _, acc, t = load_and_finetune(
+                    self.root, train_subjs, subj,
+                    params, learning_config
+                )
+                ft[i] = acc
+                ft_time[i] = t
 
-    print(data)
+            data[subj] = {}
+            data[subj]['ft'] = {}
+            data[subj]['ft']['data'] = ft
+            data[subj]['ft']['time'] = ft_time
 
-    joblib.dump(data, data_path)
+            for i in range(REPS):
+                _, acc, t = train_from_scratch(
+                    self.root, subj, params, learning_config
+                )
+                scr[i] = acc
+                scr_time[i] = t
+            data[subj]['scr'] = {}
+            data[subj]['scr']['data'] = scr
+            data[subj]['scr']['time'] = scr_time
 
-def cross_testing(root, test_subjs, params, setup, redo):
-    print(
-        'Evaluate approaches for params: ', params,
-        ', setup:', setup
-    )
+        print(data)
 
-    train_subjs, test_subjs = split_test_from_all(test_subjs)
-    print('Train on: ', train_subjs, 'Test on: ', test_subjs)
+        joblib.dump(data, data_path)
 
-    train_and_save(root, train_subjs, test_subjs, params, load=True)
-    evaluate_approaches(root, train_subjs, test_subjs, params, setup, redo)
+        return data
 
-def evaluate_study(root, archs, setups, redo=True):
-    subjs_split = [
-        ['1', '2', '3', '4'],
-        ['5', '6', '7', '8'],
-        ['9', '10', '11', '12'],
-        ['13', '14', '15', '16'],
-        ['17', '18', '19', '20'],
-        ['21', '22', '23']
-    ]
-    for arch in archs:
-        for setup in setups:
-            params = get_best_model_params(arch, setup)
-            for test_subjs in subjs_split:
-                cross_testing(root, test_subjs, params, setup, redo)
+    def run(self, learning_config=None, reps=10):
+        for arch in self.archs:
+            for setup in self.setups:
+                params = get_best_model_params(arch, setup)
+                for test_subjs in self.subjs_split:
+                    print(
+                        'Evaluate approaches for params: ', params,
+                        ', setup:', setup
+                    )
+                    train_subjs, test_subjs = split_test_from_all(test_subjs)
 
-if __name__ == "__main__":
-    #evaluation(['mlp', 'cnn'], ['lp', 'hp'])
-    evaluate_study(sys.argv[1], ['mlp'], ['lp'])
+                    self.pretrain_model(train_subjs, test_subjs, params)
+
+                    self._evaluate_approaches(
+                        train_subjs, test_subjs,
+                        params, setup, learning_config, reps, self.redo 
+                    )
+

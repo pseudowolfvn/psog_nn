@@ -2,19 +2,20 @@
 """
 from ml.load_data import get_specific_data
 from ml.model import build_model
-from ml.utils import get_model_path
+from ml.utils import get_model_path, default_config_if_none
 from utils.utils import get_arch
 
 
-def train_from_scratch(root, subj, params):
-    # TODO: change True back to False
+def train_from_scratch(root, subj, params, learning_config=None):
+    learning_config = default_config_if_none(learning_config)
+
     X_train, X_val, X_test, y_train, y_val, y_test = \
         get_specific_data(root, subj, get_arch(params))
 
     model = build_model(params)
     fit_time = model.train(
         X_train, y_train, X_val, y_val,
-        batch_size=200, patience=50
+        **learning_config
     )
 
     print('Model ' + get_model_path(subj, params) + ' trained from scratch')

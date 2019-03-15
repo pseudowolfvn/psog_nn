@@ -4,7 +4,7 @@ import os
 
 from ml.load_data import get_general_data, get_specific_data
 from ml.model import build_model
-from ml.utils import get_model_path
+from ml.utils import get_model_path, default_config_if_none
 from utils.utils import get_arch
 
 
@@ -27,7 +27,9 @@ def train_and_save(root, train_subjs, test_subjs, params, load=False):
     print('Train acc: ', train_acc)
     print('Test acc: ', test_acc)
 
-def load_and_finetune(root, train_subjs, subj, params):
+def load_and_finetune(root, train_subjs, subj, params, learning_config=None):
+    learning_config = default_config_if_none(learning_config)
+
     arch = get_arch(params)
 
     X_train, X_val, X_test, y_train, y_val, y_test = \
@@ -44,7 +46,7 @@ def load_and_finetune(root, train_subjs, subj, params):
 
     fit_time = model.train(
         X_train, y_train, X_val, y_val,
-        batch_size=200, patience=50
+        **learning_config
     )
 
     print('Partial fit completed')

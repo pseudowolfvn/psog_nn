@@ -8,7 +8,7 @@ from preproc.restore_missed import restore_missed_samples
 from preproc.head_mov_tracker import track_markers
 from preproc.psog import simulate_psog
 from ml.grid_search import grid_search
-from ml.eval import evaluate_study
+from ml.general_analysis import evaluate
 from plots.boxplots_per_subject import plot_boxplots
 from plots.error_bars import plot_error_bars
 from plots.samples_distrib import draw_samples
@@ -150,7 +150,7 @@ def run_cli():
         if args.grid_search:
             grid_search(dataset_root, args.arch, args.setup, redo=False)
         if args.evaluate:
-            evaluate_study(dataset_root, args.arch, args.setup, redo=False)
+            evaluate(dataset_root, args.arch, args.setup, redo=False)
     elif args.cmd == 'plot':
         if args.boxplots:
             plot_boxplots(results_root, args.arch, args.setup)

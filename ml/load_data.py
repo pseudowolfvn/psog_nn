@@ -2,6 +2,7 @@
 """
 import os
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 import numpy as np
 import pandas as pd
@@ -9,7 +10,7 @@ from sklearn.model_selection import train_test_split
 
 from ml.utils import filter_outliers, normalize
 from preproc.psog import PSOG
-from utils.utils import list_if_not
+from utils.utils import list_if_not, deg_to_pix
 
 
 def get_subj_data(subj_root, sensor=None):
@@ -79,6 +80,73 @@ def get_specific_data(root, subj, arch, train_subjs=None):
         X_train, X_val, X_test = reshape_into_grid(X_train, X_val, X_test)
 
     return X_train, X_val, X_test, y_train, y_val, y_test
+
+def get_stimuli_pos(root, subj):
+    subj_root = os.path.join(root, subj)
+    subj = Path(subj_root).name
+
+    data_path = 'Stimulus.xml'
+
+    tree = ET.parse(os.path.join(subj_root, data_path))
+    root = tree.getroot()
+
+    stimuli_pos = []
+    for position in root.iter('Position'):
+        x = int(position.find('X').text)
+        y = int(position.find('Y').text)
+        stimuli_pos.append((x, y))
+
+    stimuli_pos = np.array(stimuli_pos)
+    return stimuli_pos
+
+def get_calib_like_data(root, subj, arch):
+    subj_root = os.path.join(root, subj)
+    stimuli_pos = get_stimuli_pos(root, subj)
+
+    calib_pos = sorted(list(set(stimuli_pos)))
+    calib_pos = [
+        calib_pos[0],
+        calib_pos[2],
+        calib_pos[4],
+        calib_pos[8],
+        calib_pos[10],
+        calib_pos[12],
+        calib_pos[16],
+        calib_pos[18],
+        calib_pos[20]
+    ]
+
+    X_train, y_train = get_subj_data(subj_root)
+
+    train_ind = []
+    test_ind = []
+    for ind, pos in enumerate(y_train):
+        posx, posy = deg_to_pix(pos)
+        calib_point = False
+        for calib in calib_pos:
+            x, y = calib
+            dist = np.hypot(posx - x, posy - y)
+            if dist < 35.:
+                calib_point = True
+                break
+        if calib_point:
+            train_ind.extend([ind])
+        else:
+            test_ind.extend([ind])
+
+    X_test = X_train[test_ind]
+    y_test = y_train[test_ind]
+
+    X_train = X_train[train_ind]
+    y_train = y_train[train_ind]
+
+    X_train, X_test = normalize(X_train, X_test, arch)
+
+    X_test, X_val, y_test, y_val = train_test_split(
+        X_test, y_test, test_size=0.2, random_state=42)
+    
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
 
 def split_test_from_all(test_subjs):
     data = [str(i) for i in range(1, 23 + 1)]
