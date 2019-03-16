@@ -19,7 +19,7 @@ class StudyEvaluation:
         self.root = root
         self.archs = archs
         self.setups = setups
-        self.study_id = study_id
+        self.study_id = str(study_id)
         self.redo = redo
 
         self.subjs_split = [
@@ -41,8 +41,8 @@ class StudyEvaluation:
         results_dir = os.path.join(get_module_prefix(), 'results')
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)
-        data_name = str(self.study_id) + '_' + \
-            str(setup) + '_' + str(params) + '_' + \
+        name_prefix = self.study_id + '_' if len(self.study_id) > 0 else ''
+        data_name = name_prefix + str(setup) + '_' + str(params) + '_' + \
             str(test_subjs) + '.pkl'
         data_path = os.path.join(results_dir, data_name)
 
