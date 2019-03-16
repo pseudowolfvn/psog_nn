@@ -30,25 +30,34 @@ class StudyEvaluation:
             ['17', '18', '19', '20'],
             ['21', '22', '23']
         ]
+
+        self.results = {}
     
     def pretrain_model(self, train_subjs, test_subjs, params):
         train_and_save(self.root, train_subjs, test_subjs, params, load=True)
 
+    def _get_study_prefix(self, config):
+        if self.study_id == '':
+            return ''
+        else:
+            return self.study_id + '_' + str(config['batch_size']) + 'bs_'
+
     def _evaluate_approaches(
         self, train_subjs, test_subjs,
-        params, setup, learning_config, REPS, redo
+        params, setup, config, REPS, redo
     ):
         results_dir = os.path.join(get_module_prefix(), 'results')
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)
-        name_prefix = self.study_id + '_' if len(self.study_id) > 0 else ''
+        name_prefix = self._get_study_prefix(config)
         data_name = name_prefix + str(setup) + '_' + str(params) + '_' + \
             str(test_subjs) + '.pkl'
         data_path = os.path.join(results_dir, data_name)
 
         if not redo and os.path.exists(data_path):
             print('Evaluation results', data_path, 'already exists, skip')
-            return
+            data = joblib.load(data_path)
+            return data
 
         data = {'subjs': test_subjs}
         for subj in test_subjs:
@@ -60,7 +69,7 @@ class StudyEvaluation:
             for i in range(REPS):
                 _, acc, t = load_and_finetune(
                     self.root, train_subjs, subj,
-                    params, learning_config
+                    params, config
                 )
                 ft[i] = acc
                 ft_time[i] = t
@@ -72,7 +81,7 @@ class StudyEvaluation:
 
             for i in range(REPS):
                 _, acc, t = train_from_scratch(
-                    self.root, subj, params, learning_config
+                    self.root, subj, params, config
                 )
                 scr[i] = acc
                 scr_time[i] = t
@@ -85,6 +94,13 @@ class StudyEvaluation:
         joblib.dump(data, data_path)
 
         return data
+
+    def _accumulate_results(self, data):
+        for k, v in data.items():
+            if k == 'subjs' and 'subjs' in self.results:
+                self.results[k].extend(v)
+            else:
+                self.results[k] = v
 
     def run(self, learning_config=None, reps=10):
         for arch in self.archs:
@@ -99,8 +115,11 @@ class StudyEvaluation:
 
                     self.pretrain_model(train_subjs, test_subjs, params)
 
-                    self._evaluate_approaches(
+                    data = self._evaluate_approaches(
                         train_subjs, test_subjs,
                         params, setup, learning_config, reps, self.redo 
                     )
+                    self._accumulate_results(data)
+
+        return self.results
 
