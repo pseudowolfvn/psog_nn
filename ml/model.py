@@ -27,18 +27,23 @@ class Model:
             self.model.add(Flatten())
 
         for _ in range(L_fc):
-            self.model.add(Dense(N, activation='relu', kernel_regularizer=l2(0.0001)))
+            self.model.add(Dense(
+                N, activation='relu',
+                kernel_regularizer=l2(0.0001)
+            ))
 
         self.model.add(Dense(2))
 
-        nadam_opt = Nadam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
-        self.model.compile(loss='mean_squared_error', optimizer=nadam_opt)
-
-    def train(self, X, y, X_val, y_val, epochs=1000, batch_size=200, patience=100):
+    def train(self, X, y, X_val, y_val,
+            epochs=1000, batch_size=200, patience=100):
         early_stopping = EarlyStopping(
             monitor='val_loss', patience=patience,
             mode='auto', restore_best_weights=True
         )
+
+        # Keras doesn't save optimizer together with the model
+        nadam_opt = Nadam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+        self.model.compile(loss='mean_squared_error', optimizer=nadam_opt)
 
         fit_time = time.time()
         self.model.fit(
@@ -48,7 +53,8 @@ class Model:
         )
         return time.time() - fit_time
 
-    def report_acc(self, X_train, y_train, X_test, y_test, X_val=None, y_val=None):
+    def report_acc(self, X_train, y_train,
+            X_test, y_test, X_val=None, y_val=None):
         train_acc = calc_acc(y_train, self.model.predict(X_train))
         test_acc = calc_acc(y_test, self.model.predict(X_test))
         val_acc = None
