@@ -96,13 +96,12 @@ def get_stimuli_pos(root, subj):
         y = int(position.find('Y').text)
         stimuli_pos.append((x, y))
 
-    stimuli_pos = np.array(stimuli_pos)
+    # stimuli_pos = np.array(stimuli_pos)
     return stimuli_pos
 
 def get_calib_like_data(root, subj, arch):
     subj_root = os.path.join(root, subj)
     stimuli_pos = get_stimuli_pos(root, subj)
-
     calib_pos = sorted(list(set(stimuli_pos)))
     calib_pos = [
         calib_pos[0],
@@ -144,7 +143,10 @@ def get_calib_like_data(root, subj, arch):
 
     X_test, X_val, y_test, y_val = train_test_split(
         X_test, y_test, test_size=0.2, random_state=42)
-    
+
+    if arch == 'cnn':
+        X_train, X_val, X_test = reshape_into_grid(X_train, X_val, X_test)
+
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 
