@@ -35,10 +35,9 @@ def filter_outliers(data, verbose=False):
     return data.drop(outliers.index)
 
 def normalize(X_train, X_test, arch, train_subjs=None):
-    # we need to dump and load PCA results 
-    # if any pool of train_subjs is provided
-    # and architeture is not CNN
-    should_load = train_subjs is not None and arch != 'cnn'
+    # we need to dump and load PCA (or only whitening in case of CNN)
+    # results if any pool of train_subjs is provided
+    should_load = train_subjs is not None
 
     if should_load:
         norm_dir = os.path.join(get_module_prefix(), 'pca')
@@ -46,7 +45,7 @@ def normalize(X_train, X_test, arch, train_subjs=None):
             os.mkdir(norm_dir)
         norm_path = os.path.join(
             norm_dir,
-            'normalizer_' + str(train_subjs) + '.pkl'
+            arch + '_normalizer_' + str(train_subjs) + '.pkl'
         )
 
     # we only want to do data whitening for CNN architecture
