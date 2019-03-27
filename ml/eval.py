@@ -103,6 +103,8 @@ class StudyEvaluation:
                 self.results[k] = v
 
     def run(self, learning_config=None, reps=10):
+        self.results = {}
+
         for arch in self.archs:
             for setup in self.setups:
                 params = get_best_model_params(arch, setup)

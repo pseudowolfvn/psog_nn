@@ -7,29 +7,32 @@ import numpy as np
 from ml.eval import StudyEvaluation
 from plots.utils import accumulate_data
 
-def calc_time_stats(data):
-    def time_arr(data, appr):
-        return [data[subj][appr]['time'] for subj in data['subjs']]
+def calc_stats(data, field):
+    def arr(data, appr):
+        return [data[subj][appr][field] for subj in data['subjs']]
 
-    ft_time = time_arr(data, 'ft')
-    scr_time = time_arr(data, 'scr')
-    time_stats = {
+    ft = arr(data, 'ft')
+    scr = arr(data, 'scr')
+    stats = {
         'ft': {
-            'mean': np.mean(ft_time),
-            'std': np.std(ft_time),
+            'mean': np.mean(ft),
+            'std': np.std(ft),
         },
         'scr': {
-            'mean': np.mean(scr_time),
-            'std': np.std(scr_time),
+            'mean': np.mean(scr),
+            'std': np.std(scr),
         }
     }
-    return time_stats
+    return stats
 
 def evaluate_config(eval, config):
     data = eval.run(config, 1)
-    stats = calc_time_stats(data)
+    time_stats = calc_stats(data, 'time')
+    acc_stats = calc_stats(data, 'data')
     print('Time statistics for config: ', config)
-    print(stats)
+    print(time_stats)
+    print('Accuracy statistics for config: ', config)
+    print(acc_stats)
     print()
 
 def evaluate(root, archs, setups, redo=True):
@@ -39,7 +42,7 @@ def evaluate(root, archs, setups, redo=True):
         'batch_size': 200,
         'patience': 10
     }
-    # evaluate_config(eval, sm_bs_config)
+    evaluate_config(eval, sm_bs_config)
     # bigger batch size
     bg_bs_config = {
         'batch_size': 2000,
