@@ -7,30 +7,52 @@ from preproc.shift_crop import shift_and_crop
 from preproc.restore_missed import restore_missed_samples
 from preproc.head_mov_tracker import track_markers
 from preproc.psog import simulate_psog
+from ml.general_analysis import evaluate_study
 from ml.grid_search import grid_search
-from ml.general_analysis import evaluate
+from ml.time_analysis import evaluate_time
+from ml.calib_analysis import evaluate_calib
 from plots.boxplots_per_subject import plot_boxplots
 from plots.error_bars import plot_error_bars
 from plots.samples_distrib import draw_samples
 from utils.utils import none_if_empty, list_if_not
 
 
-def add_subjs_argument(parser, arg_name, help_str):
-    parser.add_argument(
+def add_subjs_argument(subparser, arg_name, help_str):
+    """Add command-line argument to provided subparser for
+    restricting corresponding analysis to the set of subjects.
+
+    Args:
+        subparser: A subparser obtained from ArgumentParser.add_subparser().
+        arg_name: A name for the argument that relates to the type of analysis.
+        help_str: A help string that will be shown in the help page.
+    """
+    subparser.add_argument(
         arg_name, metavar='SUBJ', nargs='*', type=str, help=help_str
     )
 
-def add_archs_argument(parser):
+def add_archs_argument(subparser):
+    """Add command-line argument to provided subparser for
+    choosing neural network architecture.
+
+    Args:
+        subparser: A subparser obtained from ArgumentParser.add_subparser().
+    """
     archs = ['mlp', 'cnn']
-    parser.add_argument(
+    subparser.add_argument(
         '--arch', default=archs, nargs='?', choices=archs,
         help='''restrict corresponding analysis to
             either MLP or CNN architecture. If not specified, run for both.'''
     )
 
-def add_setups_argument(parser):
+def add_setups_argument(subparser):
+    """Add command-line argument to provided subparser for
+    choosing power consumption setup.
+
+    Args:
+        subparser: A subparser obtained from ArgumentParser.add_subparser().
+    """
     setups = ['lp', 'hp']
-    parser.add_argument(
+    subparser.add_argument(
         '--setup', default=setups, nargs='?', choices=setups,
         help='''restrict corresponding analysis to
             either LP (low-power) or HP (high-power) setup.
@@ -38,6 +60,12 @@ def add_setups_argument(parser):
     )
 
 def build_subparsers():
+    """Build subparsers for command-line arguments of project's modules.
+
+    Returns:
+        Parser of argparse.ArgumentParser type that contains
+        all corresponding subparsers.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--root', default='dataset', nargs=1,
@@ -92,6 +120,18 @@ def build_subparsers():
             for 'fine-tune' and 'from scratch' approaches on the
             whole dataset'''
     )
+    ml.add_argument(
+        '--time', default=False, action='store_true',
+        help='''basic training time complexity analysis for
+            'fine-tune' and 'from scratch' approaches for CNN architecture
+            of LP setup on the whole dataset'''
+    )
+    ml.add_argument(
+        '--calib_like_train', default=False, action='store_true',
+        help='''basic analysis of using calibration-like distribution
+            of training set for 'fine-tune' approach for CNN architecture
+            of both setups for subjects "6" and "8"'''
+    )
     add_archs_argument(ml)
     add_setups_argument(ml)
 
@@ -120,6 +160,8 @@ def build_subparsers():
     return parser
 
 def run_cli():
+    """Run main command-line interface.
+    """
     parser = build_subparsers()
 
     args = parser.parse_args()
@@ -150,7 +192,11 @@ def run_cli():
         if args.grid_search:
             grid_search(dataset_root, args.arch, args.setup, redo=False)
         if args.evaluate:
-            evaluate(dataset_root, args.arch, args.setup, redo=False)
+            evaluate_study(dataset_root, args.arch, args.setup, redo=False)
+        if args.time:
+            evaluate_time(dataset_root, ['cnn'], ['lp'], redo=False)
+        if args.calib_like_train:
+            evaluate_calib(dataset_root, ['6', '8'])
     elif args.cmd == 'plot':
         if args.boxplots:
             plot_boxplots(results_root, args.arch, args.setup)

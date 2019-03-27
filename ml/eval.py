@@ -9,34 +9,57 @@ from sklearn.externals import joblib
 from ml.finetune import train_and_save, load_and_finetune
 from ml.from_scratch import train_from_scratch
 from ml.grid_search import get_best_model_params
-from ml.load_data import split_test_from_all
+from ml.load_data import split_test_from_all, get_default_subjs_split
 from ml.utils import get_module_prefix
 from utils.utils import get_arch
 
 
 class StudyEvaluation:
+    """Class that provides access to general evaluation of training approaches
+    for different neural network architectures and power consumption setups.
+    """
+
     def __init__(self, root, archs, setups, study_id='', redo=True):
+        """Inits StudyEvaluation with path to dataset and study configuration.
+
+        Args:
+            root: A string with path to dataset.
+            archs: A list with neural network architectures to evaluate.
+            setups: A list with power consumption setups to evaluate.
+            study_id: A string with study id
+                (appended to file with study results).
+            redo: A boolean that shows if study should be done again
+                if files of results already exist.
+        """
         self.root = root
         self.archs = archs
         self.setups = setups
         self.study_id = str(study_id)
         self.redo = redo
 
-        self.subjs_split = [
-            ['1', '2', '3', '4'],
-            ['5', '6', '7', '8'],
-            ['9', '10', '11', '12'],
-            ['13', '14', '15', '16'],
-            ['17', '18', '19', '20'],
-            ['21', '22', '23']
-        ]
-
         self.results = {}
     
     def pretrain_model(self, train_subjs, test_subjs, params):
+        """Pre-train the neural network model on provided set of subjects.
+
+        Args:
+            train_subjs: A list of subjects ids to train on.
+            test_subjs: A list of subjects ids to test on.
+            params: A tuple with neural network paramters following the format
+                described in ml.model.build_model().
+        """
         train_and_save(self.root, train_subjs, test_subjs, params, load=True)
 
     def _get_study_prefix(self, config):
+        """Get prefix of the study depending on its id.
+
+        Args:
+            config: A dict that has 'batch_size' field with the
+                corresponding value used in this study.
+
+        Returns:
+            A string with prefix.
+        """
         if self.study_id == '':
             return ''
         else:
@@ -46,6 +69,26 @@ class StudyEvaluation:
         self, train_subjs, test_subjs,
         params, setup, config, REPS, redo
     ):
+        """Evalute spatial accuracies and times spent for training
+            for 'fine-tune' and 'from scratch' approaches
+            for provided study configuration.
+
+        Args:
+            train_subjs: A list of subjects ids to train on.
+            test_subjs: A list of subjects ids to test on.
+            params: A tuple with neural network paramters following the format
+                described in ml.model.build_model().
+            setup: A string with power consumption setup to evaluate.
+            config: A dict with parameters used for training following
+                the format described in ml.utils.default_config_if_none().
+            REPS: An int with number of repetitions
+                of training for each subject.
+            redo: A boolean that shows if study should be done again
+                if files of results already exist.
+
+        Returns:
+            A dict with results following the format of self.run() return.
+        """
         results_dir = os.path.join(get_module_prefix(), 'results')
         if not os.path.exists(results_dir):
             os.mkdir(results_dir)
@@ -96,6 +139,13 @@ class StudyEvaluation:
         return data
 
     def _accumulate_results(self, data):
+        """Accumulate several dicts returned from self._evalute_approaches()
+            into one self.results dict.
+
+        Args:
+            data: A dict with partial results returned
+                from self._evalute_approaches().
+        """
         for k, v in data.items():
             if k == 'subjs' and 'subjs' in self.results:
                 self.results[k].extend(v)
@@ -103,12 +153,45 @@ class StudyEvaluation:
                 self.results[k] = v
 
     def run(self, learning_config=None, reps=10):
+        """Main method to run the general study evaluation
+            for the whole dataset.
+
+        Args:
+            learning_config: A dict with parameters used for training following
+                the format described in ml.utils.default_config_if_none().
+            reps: An int with number of repetitions
+                of training for each subject.
+
+        Returns:
+            A dict with results in the format: {
+                'subjs': [<subj_ids>],
+                <foreach subj_id from subj_ids>: {
+                    'ft': {
+                        'data': [<spatial accuracies
+                            for 'fine-tune' approach>],
+                        'time': [<times spent for training
+                            for fine-tune approach>]
+                    },
+                    'scr': {
+                        'data': [<spatial accuracies 
+                            for 'from scratch' approach>],
+                        'time': [<times spent for training
+                            for 'from scratch' approach>]
+                    }
+                }
+            }
+        """
+        # Workaround to be able to call this method for the same object
+        # more than once. Without it, after first call, first element 
+        # of the following array containes all IDs.
+        # TODO: find the source of bug
+        subjs_split = get_default_subjs_split()
         self.results = {}
 
         for arch in self.archs:
             for setup in self.setups:
                 params = get_best_model_params(arch, setup)
-                for test_subjs in self.subjs_split:
+                for test_subjs in subjs_split:
                     print(
                         'Evaluate approaches for params: ', params,
                         ', setup:', setup

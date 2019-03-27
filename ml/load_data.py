@@ -81,6 +81,11 @@ def get_specific_data(root, subj, arch, train_subjs=None):
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 
+def default_source_if_none(data_source):
+    if data_source is None:
+        data_source = get_specific_data
+    return data_source
+
 def get_stimuli_pos(root, subj):
     subj_root = os.path.join(root, subj)
     subj = Path(subj_root).name
@@ -99,7 +104,7 @@ def get_stimuli_pos(root, subj):
     # stimuli_pos = np.array(stimuli_pos)
     return stimuli_pos
 
-def get_calib_like_data(root, subj, arch):
+def get_calib_like_data(root, subj, arch, train_subjs=None):
     subj_root = os.path.join(root, subj)
     stimuli_pos = get_stimuli_pos(root, subj)
     calib_pos = sorted(list(set(stimuli_pos)))
@@ -149,7 +154,6 @@ def get_calib_like_data(root, subj, arch):
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 
-
 def split_test_from_all(test_subjs):
     data = [str(i) for i in range(1, 23 + 1)]
     train_subjs = []
@@ -157,3 +161,21 @@ def split_test_from_all(test_subjs):
         if subj not in test_subjs:
             train_subjs.append(subj)
     return train_subjs, test_subjs
+
+def get_default_subjs_split():
+    return [
+        ['1', '2', '3', '4'],
+        ['5', '6', '7', '8'],
+        ['9', '10', '11', '12'],
+        ['13', '14', '15', '16'],
+        ['17', '18', '19', '20'],
+        ['21', '22', '23']
+    ]
+
+def find_train_test_split(subj):
+    subjs_split = get_default_subjs_split()
+
+    for split in subjs_split:
+        if subj in split:
+            return split_test_from_all(split)
+    return None

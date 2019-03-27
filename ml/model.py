@@ -17,7 +17,20 @@ from utils.utils import get_arch
 
 
 class Model:
+    """Class that provides that wraps a Keras-based neural network model
+        and provides an interface for its evaluation.
+    """
     def __init__(self, L_conv, D, L_fc, N):
+        """Inits Model with corresponding paramaters.
+
+        Args:
+            L_conv: number of convolutional layers
+                if any, 0 otherwise.
+            D: number of filters in each convolutional layer
+                if any, 0 otherwise.
+            L_fc: number of fully-connected layers.
+            N: number of neurons in each fully-connected layer.
+        """
         self.model = Sequential()
 
         for _ in range(L_conv):
@@ -36,6 +49,23 @@ class Model:
 
     def train(self, X, y, X_val, y_val,
             epochs=1000, batch_size=200, patience=100):
+        """Train the model.
+
+        Args:
+            X: An array of input values with
+                PSOG sensor raw outputs.
+            y: An array of output values with
+                corresponding ground-truth eye gazes.
+            X_val: An array with validation set for input.
+            y_val: An array with validation set for output.
+            epochs: An int with number of epochs to train for.
+            batch_size: An int with batch size.
+            patience: An int with the number of epochs to wait for
+                validation loss improvement in early-stopping technique.
+
+        Returns:
+            A float with time spent for training in sec.
+        """
         early_stopping = EarlyStopping(
             monitor='val_loss', patience=patience,
             mode='auto', restore_best_weights=True
@@ -55,6 +85,22 @@ class Model:
 
     def report_acc(self, X_train, y_train,
             X_test, y_test, X_val=None, y_val=None):
+        """Calculate accuracy of model's predictions.
+
+        Args:
+            X_train: An array of training set input values with
+                PSOG sensor raw outputs.
+            y_train: An array of training set output values with
+                corresponding ground-truth eye gazes.
+            X_test: An array with test set for input.
+            y_test: An array with test set for output.
+            X_val: An array with validation set for input.
+            y_val: An array with validation set for output.
+
+        Retuns:
+            A tuple with spatial accuracies on training set, test set and
+                validation set.
+        """
         train_acc = calc_acc(y_train, self.model.predict(X_train))
         test_acc = calc_acc(y_test, self.model.predict(X_test))
         val_acc = None
@@ -63,15 +109,27 @@ class Model:
         return train_acc, test_acc, val_acc
 
     def save_weights(self, model_path):
+        """Save model's weights.
+
+        Args:
+            model_path: A string with full path for model to be saved.
+        """
         model_dir = str(Path(model_path).parent)
         if not os.path.exists(model_dir):
             os.mkdir(model_dir)
         self.model.save(model_path)
 
     def load_weights(self, model_path):
+        """Load model's weights.
+
+        Args:
+            model_path: A string with full path for model to be loaded from.
+        """
         self.model = load_model(model_path)
 
     def freeze_conv(self):
+        """Freeze weights for convolutional layers of the self.
+        """
         for layer in self.model.layers:
             if layer.name.startswith('conv2d'):
                 layer.trainable = False
@@ -84,6 +142,24 @@ class MLP(Model):
 
 # TODO: rewrite to factory
 def build_model(params):
+    """The interface that should be used to obtain the instance of
+        Model class with provided parameters.
+    
+    Args:
+        params: A tuple with neural network paramters 
+            with the following format: (
+                <number of convolutional layers
+                    if any, 0 otherwise>,
+                <number of filters in each convolutional layer
+                    if any, 0 otherwise>,
+                <number of fully-connected layers>,
+                <number of neurons in each fully-connected layer>
+            ).
+
+    Returns:
+        An instance of Model class that represents
+            a model with corresponding parameters.
+    """
     K.clear_session()
     arch = get_arch(params) 
     if arch == 'mlp':

@@ -10,6 +10,16 @@ from ml.utils import get_module_prefix
 
 
 def get_best_model_params(arch, setup):
+    """Extract the best model parameters from the grid-search results
+        for provided neural network architecture and power consumption setup.
+
+    Args:
+        arch: A string with model architecture id.
+        setup: A string with power consumption id.
+
+    Returns:
+        A tuple following the format described in ml.model.build_model().
+    """
     log_dir = os.path.join(get_module_prefix(), 'log')
     if not os.path.exists(log_dir):
         print('Directory with grid-search results doesn\'t exist!')
@@ -41,6 +51,30 @@ def grid_search_arch_setup(
         root, train_subjs, test_subjs,
         search_space, arch, setup, redo
     ):
+    """Grid-search for provided neural network architecture,
+        power consumption setup and search space for parameters.
+
+    Args:
+        root: A string with path to dataset.
+        train_subjs: A list of subjects ids to train on.
+        test_subjs: A list of subjects ids to test on.
+        search_space: A dict for parameters search space
+            in the following format: {
+                'conv_layers': <number of convolutional layers, if any>,
+                'conv_depth': <number of filters in
+                    each convolutional layer, if any>,
+                'layers': <number of fully-connected layers>,
+                'neurons': <number of neurons in
+                    each fully-connected layer>
+            }.
+        arch: A string with model architecture id.
+        setup: A string with power consumption id.
+        redo: A boolean that shows if search should be done again
+            if files of results already exist.
+
+    Returns:
+        An instance of ml.model.Model() with the best parameters found.
+    """
     log_dir = os.path.join(get_module_prefix(), 'log')
     if not os.path.exists(log_dir):
         os.mkdir(log_dir)
@@ -109,6 +143,16 @@ def grid_search_arch_setup(
     return models[0]
 
 def grid_search(root, archs, setups, redo=True):
+    """Run grid-search to pick best parameters
+        for neural network architectures.
+
+    Args:
+        root: A string with path to dataset.
+        archs: A list with neural network architectures to evaluate.
+        setups: A list with power consumption setups to evaluate.
+        redo: A boolean that shows if search should be done again
+            if files of results already exist.
+    """
     train_subjs, test_subjs = split_test_from_all([])
     # we want to ensure that generalization for unseen subjects is very poor,
     # so we will take out last subject for test purposes
@@ -138,47 +182,6 @@ def grid_search(root, archs, setups, redo=True):
                 'conv_depth': [4, 8, 16],
                 'layers': [3, 4, 5],
                 'neurons': [16, 32, 48, 64, 96]
-            },
-        },
-    }
-
-    for arch in archs:
-        for setup in setups:
-            grid_search_arch_setup(
-                root, train_subjs, test_subjs,
-                search_space[arch][setup], arch, setup, redo
-            )
-
-def grid_search_test_etra(root, archs, setups, redo=True):
-    train_subjs, test_subjs = split_test_from_all([])
-    # we want to ensure that generalization for unseen subjects is very poor,
-    # so we will take out last subject for test purposes
-    test_subjs = train_subjs[-1]
-    train_subjs = train_subjs[:-1]
-
-    search_space = {
-        'mlp': {
-            'lp': {
-                'layers': [6],
-                'neurons': [20]
-            },
-            'hp': {
-                'layers': [4],
-                'neurons': [96]
-            },
-        },
-        'cnn': {
-            'lp': {
-                'conv_layers': [4],
-                'conv_depth': [4],
-                'layers': [4],
-                'neurons': [20]
-            },
-            'hp': {
-                'conv_layers': [1],
-                'conv_depth': [4],
-                'layers': [3],
-                'neurons': [96]
             },
         },
     }
