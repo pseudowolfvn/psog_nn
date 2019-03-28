@@ -14,6 +14,16 @@ from utils.utils import list_if_not, deg_to_pix
 
 
 def get_subj_data(subj_root, sensor=None):
+    """Get data for provided subject.
+
+    Args:
+        subj_root: A string with full path to directory
+            with subject's data stored in .csv file. 
+
+    Return:
+        A tuple of array with PSOG sensor raw outputs,
+            array with corresponding ground-truth eye gazes.
+    """
     if sensor is None:
         sensor = PSOG()
 
@@ -29,6 +39,17 @@ def get_subj_data(subj_root, sensor=None):
     return X, y
 
 def get_data(root, subj_ids=None):
+    """Get data for the provided list of subjects.
+
+    Args:
+        root: A string with path to dataset.
+        subj_ids: A list with subjects ids to get data for if provided,
+            otherwise get data for the whole dataset.
+
+    Return:
+        A tuple of array with PSOG sensor raw outputs,
+            array with corresponding ground-truth eye gazes.
+    """
     # when only one id is provided we shouldn't
     # consider it as iterable but enclose in the list
     if subj_ids is not None:
@@ -49,12 +70,39 @@ def get_data(root, subj_ids=None):
     return np.array(X_data), np.array(y_data)
 
 def reshape_into_grid(X_train, X_val, X_test):
+    """Reshape 1x15 flatten data into 3x5 grid.
+
+    Args:
+        X_train: An array of training set values with
+            PSOG sensor raw outputs.
+        X_val: An array with validation set.
+        X_test: An array with test set.
+
+    Returns:
+        A tuple with reshaped training, validation and test sets.
+    """
     X_train = X_train.reshape((X_train.shape[0], 3, 5, 1))
     X_val = X_val.reshape((X_val.shape[0], 3, 5, 1))
     X_test = X_test.reshape((X_test.shape[0], 3, 5, 1))
     return X_train, X_val, X_test
 
+# TODO: choose a better name
 def get_general_data(root, train_subjs, test_subjs, arch):
+    """Get data when training and test sets consist of different subjects.
+
+    Args:
+        root: A string with path to dataset.
+        train_subjs: A list of subjects ids to train on.
+        test_subjs: A list of subjects ids to test on.
+        arch: A string with model architecture id.
+
+    Returns:
+        A tuple of 6 arrays: 
+            array of training set values with PSOG sensor raw outputs, array of
+            training set values with corresponding ground-truth eye gazes,
+            two arrays of corresponding validation set values,
+            two arrays of corresponding test set values.
+    """
     X_train, y_train = get_data(root, train_subjs)
     X_test, y_test = get_data(root, test_subjs)
     X_train, X_test = normalize(X_train, X_test, arch, train_subjs)
@@ -69,6 +117,19 @@ def get_general_data(root, train_subjs, test_subjs, arch):
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 def get_specific_data(root, subj, arch, train_subjs=None):
+    """Get data when training and test sets are
+        split from the same provided subject.
+
+    Args:
+        root: A string with path to dataset.
+        subj: A string with specific subject id.
+        arch: A string with model architecture id.
+        train_subjs: A list of subjects ids model
+            was pre-trained on if provided.
+
+    Returns:
+        The same as in ml.load_data.get_general_data().
+    """
     X_train, y_train = get_data(root, subj)
     X_train, X_test, y_train, y_test = train_test_split(
         X_train, y_train, test_size=0.7, random_state=42)
@@ -82,11 +143,29 @@ def get_specific_data(root, subj, arch, train_subjs=None):
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 def default_source_if_none(data_source):
+    """Get default data source function object.
+
+    Args:
+        data_source: A function object that is used to get data.
+
+    Returns:
+        A function object passed by 'data_source' arg if it's not None
+            otherwise default data source function.
+    """
     if data_source is None:
         data_source = get_specific_data
     return data_source
 
 def get_stimuli_pos(root, subj):
+    """Get stimuli positions in pixels used for provided subject's recording.
+
+    Args:
+        root: A string with path to dataset.
+        subj: A string with specific subject id.
+
+    Returns:
+        An array of tuples, each of one represents point on the screen.
+    """
     subj_root = os.path.join(root, subj)
     subj = Path(subj_root).name
 
@@ -105,6 +184,18 @@ def get_stimuli_pos(root, subj):
     return stimuli_pos
 
 def get_calib_like_data(root, subj, arch, train_subjs=None):
+    """Get data with calibration-like training set
+        distribution for provided subject.
+
+    Args:
+        root: A string with path to dataset.
+        subj: A string with specific subject id.
+        arch: A string with model architecture id.
+        train_subjs: None, ignored.
+
+    Returns:
+        The same as in ml.load_data.get_specific_data().
+    """
     subj_root = os.path.join(root, subj)
     stimuli_pos = get_stimuli_pos(root, subj)
     calib_pos = sorted(list(set(stimuli_pos)))
@@ -155,6 +246,16 @@ def get_calib_like_data(root, subj, arch, train_subjs=None):
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 def split_test_from_all(test_subjs):
+    """Split the whole dataset into train and
+        test sets of subjects ids with later one provided.
+
+    Args:
+        test_subjs: A list with test set subjects ids.
+
+    Returns:
+        A tuple of array with training set subjects ids,
+            array with test set subjects ids.
+    """
     data = [str(i) for i in range(1, 23 + 1)]
     train_subjs = []
     for subj in data:
@@ -163,6 +264,11 @@ def split_test_from_all(test_subjs):
     return train_subjs, test_subjs
 
 def get_default_subjs_split():
+    """Get default split into test set subjects ids chunks.
+
+    Returns:
+        A list of lists, each of one represents test set subjects ids chunk.
+    """
     return [
         ['1', '2', '3', '4'],
         ['5', '6', '7', '8'],
@@ -173,6 +279,15 @@ def get_default_subjs_split():
     ]
 
 def find_train_test_split(subj):
+    """Get split of the whole dataset into train and
+        test sets of subjects ids with only one subject id provided.
+
+    Args:
+        subj: A string with specific subject id.
+
+    Returns:
+        The same as in ml.load_data.split_test_from_all().
+    """
     subjs_split = get_default_subjs_split()
 
     for split in subjs_split:

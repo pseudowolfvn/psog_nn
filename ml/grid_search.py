@@ -194,4 +194,4 @@ def grid_search(root, archs, setups, redo=True):
             )
 
 if __name__ == '__main__':
-    grid_search_test_etra(sys.argv[1], ['mlp', 'cnn'], ['lp', 'hp'])
+    grid_search(sys.argv[1], ['mlp', 'cnn'], ['lp', 'hp'])
