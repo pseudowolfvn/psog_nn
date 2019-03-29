@@ -94,7 +94,7 @@ def load_data(data_root, arch, setup):
         if not filename.endswith('.pkl'):
             continue
         params = extract_params(filename)
-        interested = (arch == get_arch(params) and setup in filename)
+        interested = (arch == get_arch(params) and filename.startswith(setup))
         if not interested:
             continue
         data = accumulate_data(
