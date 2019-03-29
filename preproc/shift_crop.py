@@ -13,6 +13,17 @@ from utils.utils import repeat_up_to, calc_pad_size, do_sufficient_pad
 
 
 def add_sensor_shifts(data, hor, ver):
+    """Add columns with array of all possible simulated sensor shifts,
+        that is repeated in a cyclic way to match the size of data.
+
+    Args:
+        data: A pandas DataFrame with eye-movement signal.
+        hor: A list of all possible values for sensor shift horizontally.
+        ver: A list of all possible values for sensor shift vertically.
+
+    Returns:
+        A DataFrame with added columns.
+    """
     shift_pairs = np.array([(h, v) for h in hor for v in ver])
     shifts = repeat_up_to(shift_pairs, data.dropna().shape[0])
 
@@ -21,11 +32,35 @@ def add_sensor_shifts(data, hor, ver):
     return data
 
 def shift_mm_to_pix(sh):
+    """Convert provided shift in millimeters (mm) to pixels.
+
+    Args:
+        sh: A float with shift in mm.
+
+    Returns:
+        A float with corresponding shift in pixels.
+    """
     STEP = 0.5
     PIX_TO_MM = 4
     return int(round(sh / STEP)) * PIX_TO_MM
 
 def get_shifted_crop(img, center, head_mov, sample):
+    """Crop provided image to 320x240 close eye capture correcting for
+        possible head movement and introducing corresponding sensor shift.
+
+    Args:
+        img: An image of type convertible to numpy array.
+        center: A tuple with vertical, horizontal coordinates
+            of rectangle crop center.
+        head_mov: A tuple with vertical, horizontal
+            components of head movement.
+        sample: A dict-like object with vertical, horizontal
+            components of sensor shift that are accessible via
+            'sh_ver' and 'sh_hor' fields respectively.
+
+    Returns:
+        A cropped image.
+    """
     x, y = center
     x += shift_mm_to_pix(sample['sh_ver']) + head_mov[0]
     y += shift_mm_to_pix(sample['sh_hor']) + head_mov[1]
@@ -40,6 +75,17 @@ def get_shifted_crop(img, center, head_mov, sample):
     return img[x: x + h, y: y + w]
 
 def rename_subset(data):
+    """Leave the subset of data with
+    timestamp, horizontal and vertical parts of signal, pupil size
+    and rename corresponding columns for more handy access.
+
+    Args:
+        data: A pandas DataFrame with eye-movement signal following
+            the format of subject's FullSignal.csv from ETRA 2019 dataset.
+
+    Returns:
+        A DataFrame with renamed columns subset.
+    """
     data = data.rename(
         index=str,
         columns={
@@ -54,6 +100,13 @@ def rename_subset(data):
     return data
 
 def shift_and_crop_subj(subj_root):
+    """Introduce artificial sensor shift and crop to close eye capture
+        images in the whole recording for provided subject.
+
+    Args:
+        subj_root: A string with full path to directory
+            with subject's recording stored in images.
+    """
     print("Shift and crop for subject: " + subj_root)
 
     img_paths = ImgPathGenerator(subj_root)
@@ -111,6 +164,14 @@ def shift_and_crop_subj(subj_root):
 
 
 def shift_and_crop(dataset_root, subj_ids=None):
+    """Introduce artificial sensor shift and crop to close eye capture
+        images for the provided list of subjects.
+
+    Args:
+        dataset_root: A string with path to dataset.
+        subj_ids: A list with subjects ids to shift and crop for if provided,
+            otherwise shift and crop for the whole dataset.
+    """
     for dirname in os.listdir(dataset_root):
         if subj_ids is not None and dirname not in subj_ids:
             continue

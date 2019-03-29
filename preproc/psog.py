@@ -13,6 +13,15 @@ from utils.utils import calc_pad_size, do_sufficient_pad
 
 # this part of code is taken from Raimondas Zemblys
 def gauss(w, sigma):
+    """Compute gaussian kernel.
+
+    Args:
+        w: An int with kernal size.
+        sigma: A float with sigma value of underlying distribution.
+
+    Returns:
+        An array with the kernel.
+    """
     ax = np.arange(-w // 2 + 1., w // 2 + 1.)
     xx, yy = np.meshgrid(ax, ax)
 
@@ -21,7 +30,11 @@ def gauss(w, sigma):
     return kernel
 
 class PSOG:
+    """Class that represents PSOG sensor simulation.
+    """
     def __init__(self):
+        """Inits PSOG with its architecture.
+        """
         # TODO: move all hard-coded stuff to a separate config file
         self.size = 3*5
         self.arch = 'grid15'
@@ -33,12 +46,33 @@ class PSOG:
         self.img_shape = None
 
     def get_names(self):
+        """Get names of elements in PSOG sensor array.
+
+        Returns:
+            A list with names.
+        """
         return ['psog' + str(i) for i in range(self.size)]
 
     def __shape_changed(self, img):
+        """Check if shape of the image for which
+            sensor architecture is cached didn't change.
+
+        Args:
+            img: An image of type convertible to numpy array.
+        """
         return not np.equal(self.img_shape, img.shape).all()
 
     def __calc_sensor_layout(self, img, sensor_offset=(20, 0)):
+        """Compute the PSOG sensor array layout.
+
+        Args:
+            img: An image of type convertible to numpy array.
+            sensor_offset: A tuple with vertical and horizontal
+                offset of layout center from the image center.
+        
+        Returns:
+            A tuple with sensors top left coordinates, corresponding shapes.
+        """
         self.img_shape = np.array(img.shape)
         img_center = self.img_shape // 2
         sensor_centers = img_center + sensor_offset + self.sensor_locations
@@ -49,6 +83,17 @@ class PSOG:
         return sensor_top_lefts, sensor_shapes
 
     def calc_layout_and_pad(self, img):
+        """Compute and cache the PSOG sensor array layout,
+            do sufficient image padding if some sensors
+            run out of its boundaries.
+        
+        Args:
+            img: An image of type convertible to numpy array.
+
+        Returns:
+            A tuple with image padded if needed,
+                sensors top left coordinates, their corresponding shapes.
+        """
         if self.__shape_changed(img):
             self.top_lefts, self.shapes = self.__calc_sensor_layout(img)
             self.top_lefts, self.pad = \
@@ -58,6 +103,14 @@ class PSOG:
         return img, self.top_lefts, self.shapes
 
     def simulate_output(self, img):
+        """Simluate PSOG sensor output on provided image.
+
+        Args:
+            img: An image of type convertible to numpy array.
+
+        Returns:
+            An array with simulated output.
+        """
         img, top_lefts, shapes = self.calc_layout_and_pad(img)
 
         output = np.zeros((self.size))
@@ -70,6 +123,11 @@ class PSOG:
         return output
 
     def plot_layout(self, img):
+        """Visualize PSOG sensor array layout on provided image.
+
+        Args:
+            img: An image of type convertible to numpy array.
+        """
         _, ax = plt.subplots(1)
 
         img, top_lefts, shapes = self.calc_layout_and_pad(img)
@@ -91,6 +149,12 @@ class PSOG:
         plt.show()
 
 def simulate_subj_psog(subj_root):
+    """Simluate PSOG sensor output in the whole recording for provided subject.
+
+    Args:
+        subj_root: A string with full path to directory
+            with subject's recording stored in images.
+    """
     print('Simulating PSOG output for subject:', subj_root)
 
     img_samples = CropImgSampleGenerator(subj_root)
@@ -116,6 +180,13 @@ def simulate_subj_psog(subj_root):
 
 
 def simulate_psog(dataset_root, subj_ids=None):
+    """Simluate PSOG sensor output for the provided list of subjects.
+
+    Args:
+        dataset_root: A string with path to dataset.
+        subj_ids: A list with subjects ids to simulate for if provided,
+            otherwise simulate for the whole dataset.
+    """
     for dirname in os.listdir(dataset_root):
         if subj_ids is not None and dirname not in subj_ids:
             continue

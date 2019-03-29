@@ -9,6 +9,15 @@ import pandas as pd
 
 
 def fill_nans(data):
+    """Fill samples on misssed timestamps with NaNs
+        taking into account hardware sampling frequency.
+
+    Args:
+        data: A pandas DataFrame with 'Timestamp' column.
+    
+    Returns:
+        A DataFrame with filled NaNs.
+    """
     # TODO: move all hardware specific stuff to a separate config
     # reported by recording hardware
     FPS = 120.040660581201
@@ -41,6 +50,13 @@ def fill_nans(data):
     return full_data
 
 def restore_subj_missed_samples(subj_root):
+    """Restore missed samples in the whole
+        recording's signal for provided subject.
+
+    Args:
+        subj_root: A string with full path to directory
+            with subject's eye-movement signal file.
+    """
     print('Restoring missed samples for subject: ', subj_root)
 
     INPUT_NAME = 'UnprocessedSignal.csv'
@@ -66,6 +82,13 @@ def restore_subj_missed_samples(subj_root):
     print(', after: ', data.shape[0], ' (difference: ', diff, ')', sep='')
 
 def restore_missed_samples(dataset_root, subj_ids=None):
+    """Restore missed samples for the provided list of subjects.
+
+    Args:
+        dataset_root: A string with path to dataset.
+        subj_ids: A list with subjects ids to restore for if provided,
+            otherwise restore for the whole dataset.
+    """
     for dirname in os.listdir(dataset_root):
         if subj_ids is not None and dirname not in subj_ids:
             continue

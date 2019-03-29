@@ -10,7 +10,19 @@ from utils.gens import ImgPathGenerator
 
 
 class Marker:
+    """Class that represents angular marker attached to subject's head.
+    """
     def __init__(self, img, x, y, width=11, height=9):
+        """Inits Marker with first frame and inital position of the marker.
+
+        Args:
+            img: An image of type convertible to numpy array
+                that is the first frame of recording.
+            x: An int with vertical coordinate of the inital marker position.
+            y: An int with horizontal coordinate of the inital marker position.
+            width: An int with the width of the marker.
+            height: An int with the height of the marker.
+        """
         self.x = x
         self.y = y
 
@@ -26,9 +38,25 @@ class Marker:
         self.img = img
 
     def dist(self, other):
+        """Compute distance between current pattern and provided one.
+            L2 matrix norm is used.
+
+        Args:
+            other: An instance of the Marker class.
+        
+        Returns:
+            A float with distance.
+        """
         return np.linalg.norm(self.pattern - other.pattern, ord=2)
 
     def update(self, next_img):
+        """Update internal positiondata  of marker
+            on the next frame of the recording.
+
+        Args:
+            next_img: An image of type convertible to numpy array
+                that is the next frame of recording. 
+        """
         min_dist = np.inf
 
         # the search region is the window of 'W'x'W' size
@@ -90,6 +118,16 @@ class Marker:
 #     return min_x, min_y
 
 def track_subj_marker(subj_root, visualize=False):
+    """Track and save head marker position
+        in the whole recording for provided subject.
+    
+    Args:
+        subj_root: A string with full path to directory
+            with subject's recording stored in images.
+        visualize: A boolean that shows if tracking 
+            is visualized by showing each image of
+            the recording with tracked marker position.
+    """
     print('Tracking head marker for subject: ' + subj_root)
 
     img_paths = ImgPathGenerator(subj_root)
@@ -123,6 +161,13 @@ def track_subj_marker(subj_root, visualize=False):
                 break
 
 def track_markers(dataset_root, subj_ids=None):
+    """Track and save head marker position for the provided list of subjects.
+
+    Args:
+        dataset_root: A string with path to dataset.
+        subj_ids: A list with subjects ids to track for if provided,
+            otherwise track for the whole dataset.
+    """
     for dirname in os.listdir(dataset_root):
         if subj_ids is not None and dirname not in subj_ids:
             continue
