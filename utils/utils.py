@@ -50,6 +50,15 @@ def get_eye_stim_signal(data):
     return eye, stim
 
 def deg_to_pix(deg):
+    """Convert eye gaze in degrees of visual angle to pixels on the screen.
+
+    Args:
+        deg: A tuple with horizontal, vertical component
+            of the eye gaze in degrees.
+
+    Returns:
+        A tuple with converted eye gaze in pixels.
+    """
     posx, posy = deg
     dist_mm = 500.
     w_mm = 374.
@@ -62,21 +71,61 @@ def deg_to_pix(deg):
         conv(-posy, h_pix, h_mm, dist_mm)
 
 def get_arch(params):
+    """Get neural network architecture id from its parameters.
+
+    Args:
+        params: A tuple with neural network paramters following the format
+            described in ml.model.build_model().
+
+    Returns:
+        A string with architecture id.
+    """
     if len(params) == 4 and params[0] > 0:
         return 'cnn'
     elif len(params) == 2 or params[0] == 0:
         return 'mlp'
 
 def repeat_up_to(arr, size):
+    """Repeat array in a cyclic way such that
+        last dimension will become equal to provided size.
+
+    Args:
+        arr: A numpy array to repeat.
+        size: An int with expected size.
+
+    Returns:
+        A numpy array produced in aforementioned way.
+    """
     times = size // arr.shape[-1] + int(size % arr.shape[-1])
     return np.tile(arr, (times, 1))[:size]
 
 def do_sufficient_pad(img, pad_size):
+    """Pad provided image using mirror-padding.
+
+    Args:
+        img: An image of type convertible to numpy array.
+        pad_size: An int with pad size for both width and height.
+
+    Returns:
+        A padded image.
+    """
     # if image is RGB then color channel shouldn't be padded
     pad = ((pad_size,), (pad_size,), (0,)) if len(img.shape) == 3 else pad_size
     return np.pad(img, pad, 'reflect')
 
 def calc_pad_size(img, top_lefts, shapes):
+    """Compute sufficient pad size for the image such that provided
+        PSOG sensor array layout won't run out of its border.
+
+    Args:
+        img: An image of type convertible to numpy array.
+        top_lefts: A list of tuples, each with sensor's top left coordinate.
+        shapes: A list of tuples, each with sensor's shape.
+
+    Returns:
+        A tuple with adjusted top lefts coordinates of sensors,
+            computed pad size.
+    """
     top_lefts = np.array(top_lefts)
     bottom_rights = top_lefts + shapes
     overrun = min(
@@ -88,7 +137,21 @@ def calc_pad_size(img, top_lefts, shapes):
     return top_lefts + padding, padding
 
 def none_if_empty(it):
+    """
+    Args:
+        it: An iterable.
+
+    Returns:
+        None if 'it' is empty, 'it' otherwise.
+    """
     return None if not it else it
 
 def list_if_not(x):
+    """
+    Args:
+        x: Any object.
+
+    Returns:
+        'x' enclosed in the list if it's not the list, 'x' otherwise.
+    """
     return [x] if not isinstance(x, list) else x

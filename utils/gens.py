@@ -7,7 +7,17 @@ import pandas as pd
 from skimage.io import imread
 
 class ImgPathGenerator:
+    """Class for reading images of the recording in a proper order.
+    """
     def __init__(self, subj_root, dirname='images'):
+        """Inits ImgPathGenerator with path to the subject's recording.
+
+        Args:
+            subj_root: A string with full path to directory
+                with subject's recording.
+            dirname: A string with the name of subdirectory
+                that contains images.
+        """
         self.root = os.path.join(subj_root, dirname)
         self.img_ind = 0
 
@@ -22,14 +32,38 @@ class ImgPathGenerator:
         return self
 
     def get_img_path(self):
+        """Get full path to the current image.
+
+        Returns:
+            A string with path.
+        """
         return os.path.join(self.root, str(self.img_ind) + '.jpg')
 
     def get_root(self):
+        """Get full path to images directory.
+
+        Returns:
+            A string with path.
+        """
         return self.root
 
 # TODO: make the following class abstract
 class ImgSampleGenerator:
+    """Class for reading images with corresponding
+        eye-movement data in a proper order.
+    """
     def __init__(self, subj_root, imgs_dir, data_relpath):
+        """Inits ImgSampleGenerator with paths to images
+            and data in the subject's recording.
+        
+        Args:
+            subj_root: A string with full path to directory
+                with subject's recording.
+            imgs_dir: A string with the name of subdirectory
+                that contains images.
+            data_relpath: A string with path to eye-movement data
+                that is relative to 'subj_root'.
+        """
         self.img_paths = ImgPathGenerator(subj_root, imgs_dir)
         self.data = pd.read_csv(
             os.path.join(subj_root, data_relpath),
@@ -52,19 +86,48 @@ class ImgSampleGenerator:
         return self
 
     def get_root(self):
+        """Get full path to the current image.
+
+        Returns:
+            A string with path.
+        """
         return self.img_paths.get_root()
 
     def get_data(self):
+        """Get eye-movement data.
+
+        Returns:
+            A pandas DataFrame with data.
+        """
         return self.data
 
 class FullImgSampleGenerator(ImgSampleGenerator):
+    """Class for reading unprocessed images with corresponding
+        eye-movement data in a proper order.
+    """
     def __init__(self, subj_root):
+        """Inits FullImgSampleGenerator with path to the subject's recording.
+
+        Args:
+            subj_root: A string with full path to directory
+                with subject's recording.
+        """
         imgs_dir = 'images'
         data_relpath = 'FullSignal.csv'
         super().__init__(subj_root, imgs_dir, data_relpath)
 
 class CropImgSampleGenerator(ImgSampleGenerator):
+    """Class for reading processed cropped images with corresponding
+        eye-movement data in a proper order.
+    """
     def __init__(self, subj_root):
+        """Inits CropImgSampleGenerator with path to the subject's recording.
+
+        Args:
+            subj_root: A string with full path to directory
+                with subject's recording.
+        """
         imgs_dir = 'images_crop'
         data_relpath = os.path.join(imgs_dir, Path(subj_root).name + '.csv')
         super().__init__(subj_root, imgs_dir, data_relpath)
+
