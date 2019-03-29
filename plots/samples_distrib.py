@@ -9,11 +9,22 @@ import cv2
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from ml.load_data import get_subj_data, normalize
+from ml.load_data import get_subj_data
+from ml.utils import normalize
 from plots.utils import get_module_prefix
 from utils.utils import deg_to_pix
 
+
+# TODO: rewrite with use of ml.load_data.get_calib_like_data()
 def draw_subj_samples(subj_root):
+    """Draw stimuli and eye movements positions in pixels with highlighting
+        points for calibration-like distribution training set
+        simulation for provided subject.
+
+    Args:
+        subj_root: A string with full path to directory
+            with subject's data stored in .csv file.
+    """
     print('Drawing samples distribution for subj:', subj_root)
     subj = Path(subj_root).name
 
@@ -68,7 +79,7 @@ def draw_subj_samples(subj_root):
     X_train = X_train[train_ind]
     y_train = y_train[train_ind]
 
-    X_train, X_test = normalize(X_train, X_test, subj, False, 'cnn')
+    X_train, X_test = normalize(X_train, X_test, 'cnn')
 
     X_test, _, y_test, _ = train_test_split(
         X_test, y_test, test_size=0.2, random_state=42)
@@ -115,6 +126,14 @@ def draw_subj_samples(subj_root):
     cv2.imwrite(os.path.join(img_dir, str(subj) + '.jpg'), img)
 
 def draw_samples(root, subj_ids=None):
+    """Draw stimuli and eye movements positions in pixels with highlighting
+        points for calibration-like distribution training set simulation.
+
+    Args:
+        root: A string with path to dataset.
+        subj_ids: A list with subjects ids to draw for if provided,
+            otherwise draw for the whole dataset.
+    """
     for dirname in os.listdir(root):
         if subj_ids is not None and dirname not in subj_ids:
             continue

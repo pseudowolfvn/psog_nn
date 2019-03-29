@@ -10,7 +10,17 @@ from plotly.offline import plot
 from plots.utils import load_data, plotly_color_map, get_module_prefix
 from utils.utils import get_arch
 
+
 def get_arch_title(params):
+    """Get the corresponding plot title for provided neural network parameters.
+
+    Args:
+        params: A tuple with neural network paramters following the format
+            described in ml.model.build_model().
+
+    Returns:
+        A string with the title.
+    """
     L_conv, D, L_fc, N = params
     title = 'Dense({})x{}'.format(L_fc, N)
     if get_arch(params) == 'cnn':
@@ -18,6 +28,17 @@ def get_arch_title(params):
     return title
 
 def plot_subjs(data, subjs, arch_params, setup):
+    """Plot boxplots of per-subject spatial accuracies obtained in
+        general evaluation for provided neural network parameters,
+        power consumption setup and list of subjects.
+
+    Args:
+        data: A dict with results of general evaluation that
+            is returned from plots.utils.load_data().
+        subjs: A list with subjects ids.
+        arch_params: A string with model architecture id.
+        setup: A string with power consumption id.
+    """
     ROWS = 2
     COLS = 4
 
@@ -68,6 +89,15 @@ def plot_subjs(data, subjs, arch_params, setup):
     )
 
 def plot_setup(root, arch, setup):
+    """Plot boxplots of per-subject spatial accuracies obtained in
+        general evaluation for provided neural network architecture
+        and power consumption setup.
+
+    Args:
+        root: A string with path to evaluation results.
+        arch: A string with model architecture id.
+        setup: A string with power consumption id.
+    """
     data, arch_params = load_data(root, arch, setup)
     subjs = data['subjs']
     # be aware that it will work only if subject's id is an integer!
@@ -77,6 +107,17 @@ def plot_setup(root, arch, setup):
     plot_subjs(data, subjs[16:], arch_params, setup)
 
 def plot_boxplots(root, archs, setups):
+    """Plot boxplots of per-subject spatial accuracies obtained in
+        general evaluation for provided list of neural network
+        architectures and power consumption setups.
+
+    Args:
+        root: A string with path to evaluation results.
+        archs: A list with neural network architectures
+            to consider while plotting.
+        setups: A list with power consumption setups
+            to consider while plotting.
+    """
     for arch in archs:
         for setup in setups:
             plot_setup(root, arch, setup)

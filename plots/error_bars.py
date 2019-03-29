@@ -16,6 +16,17 @@ Y_AXIS_FONT_SIZE = 14
 
 
 def get_trace_for_group(mean, std, color, label):
+    """Get error bar trace to plot for specified group.
+
+    Args:
+        mean: A float with mean for error bar.
+        std: A float with standard deviation for error bar.
+        color: A string with trace color in hex format.
+        label: A string with label for the trace.
+
+    Returns:
+        An instance of Scatter with corresponding trace.
+    """
     return go.Scatter(
         x=[label],
         y=[mean],
@@ -35,6 +46,16 @@ def get_trace_for_group(mean, std, color, label):
     )
 
 def load_groups_data(root, setup):
+    """Load results of general evaluation for provided power consumption setup,
+        convert them into 'groups' representation and save it into evaluation
+        results directory. 
+    Args:
+        root: A string with path to evaluation results.
+        setup: A string with power consumption id.
+
+    Returns:
+        A DataFrame with converted data representation.
+    """
     data_path = os.path.join(root, setup + '.csv')
     if not os.path.exists(data_path):
         mlp_data, _ = load_data(root, 'mlp', setup)
@@ -46,6 +67,13 @@ def load_groups_data(root, setup):
     return data
 
 def plot_setup(root, setup):
+    """Plot error bars of spatial accuracies obtained in general evaluation
+        on the whole dataset for provided power consumption setup.
+
+    Args:
+        root: A string with path to evaluation results.
+        setup: A string with power consumption id.
+    """
     data = load_groups_data(root, setup)
     stats = calc_stats(data)
 
@@ -96,6 +124,14 @@ def plot_setup(root, setup):
     )
 
 def plot_error_bars(root, setups):
+    """Plot error bars of spatial accuracies obtained in general evaluation
+        on the whole dataset for provided power consumption setups.
+
+    Args:
+        root: A string with path to evaluation results.
+        setups: A list with power consumption setups
+            to consider while plotting.
+    """
     for setup in setups:
         plot_setup(root, setup)
 
