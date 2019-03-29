@@ -2,52 +2,6 @@
 """
 import numpy as np
 
-def to_radial(x):
-    if isinstance(x, tuple):
-        return np.hypot(x[0], x[1])
-    return np.hypot(x[:, 0], x[:, 1])
-
-def merge_sorted_unique(a, b):
-    a = np.array(a, dtype=np.int)
-    b = np.array(b, dtype=np.int)
-    # print('len(a): ', len(a))
-    # print('len(b): ', len(b))
-    c = np.zeros((len(a) + len(b)), dtype=np.int)
-    p_a = p_b = p_c = 0
-    while p_a < len(a) and p_b < len(b):
-        if a[p_a] < b[p_b]:
-            c[p_c] = a[p_a]
-            p_a += 1
-        else:
-            c[p_c] = b[p_b]
-            p_b += 1
-        while p_a < len(a) and a[p_a] == c[p_c]:
-            p_a += 1
-        while p_b < len(b) and b[p_b] == c[p_c]:
-            p_b += 1
-        p_c += 1
-
-    if p_a < len(a):
-        p_last = p_a
-        last = a
-    else:
-        p_last = p_b
-        last = b
-
-    while p_last < len(last):
-        # print('p_last: ', p_last)
-        c[p_c] = last[p_last]
-        while p_last < len(last) and last[p_last] == c[p_c]:
-            p_last += 1
-        p_c += 1
-
-    return c[:p_c]
-
-def get_eye_stim_signal(data):
-    eye = data[['eye_x', 'eye_y']].values
-    stim = data[['stim_x', 'stim_y']].values
-
-    return eye, stim
 
 def deg_to_pix(deg):
     """Convert eye gaze in degrees of visual angle to pixels on the screen.
