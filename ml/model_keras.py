@@ -4,35 +4,23 @@ import os
 from pathlib import Path
 import time
 
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn.optim import Adam
-from torch.utils.data import DataLoader, Dataset
-
-from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
-from ignite.handlers import EarlyStopping
-from ignite.metrics import Accuracy, Loss
+from keras import backend as K
+from keras.callbacks import EarlyStopping
+from keras.layers.convolutional import Conv2D
+from keras.layers.core import Dense, Flatten
+from keras.models import Sequential, load_model
+from keras.optimizers import Nadam
+from keras.regularizers import l2
 
 from utils.metrics import calc_acc
 from utils.utils import get_arch
 
-class EyeGazeWrapper(Dataset):
-    def __init__(self, X, y):
-        self.X = X
-        self.y = y
 
-    def __len__(self):
-        return self.X.shape[0]
-
-    def __getitem__(self, index):
-        return self.X[index], self.y[index]
-
-
-class Model(nn.Module):
+class Model:
     """Class that provides that wraps a Keras-based neural network model
         and provides an interface for its evaluation.
     """
-    def __init__(self, L_conv, D, L_fc, N, in_dim=None):
+    def __init__(self, L_conv, D, L_fc, N):
         """Inits Model with corresponding paramaters.
 
         Args:
@@ -43,40 +31,21 @@ class Model(nn.Module):
             L_fc: number of fully-connected layers.
             N: number of neurons in each fully-connected layer.
         """
-        super().__init__()
-        self.conv_layers = []
-        self.fc_layers = []
+        self.model = Sequential()
 
-        KERNEL_SIZE = 3
+        for _ in range(L_conv):
+            self.model.add(Conv2D(D, 3, padding='same'))
 
-        for c in range(L_conv):
-            in_ch = 1 if c == 1 else D
-            out_ch = D
-            self.conv_layers.append(
-                nn.Conv2D(
-                    in_ch, out_ch,
-                    KERNEL_SIZE, padding=(KERNEL_SIZE - 1)/2
-                )
-            )
-        self.fc_in_dim = 15*D if L_conv > 0 else in_dim
-        for c in range(L_fc):
-            in_ch = self.fc_in_dim if c == 1 else N
-            out_ch = N
-            self.fc_layers.append(
-                nn.Linear(in_ch, out_ch)
-            )
+        if L_conv > 0:
+            self.model.add(Flatten())
 
-        self.fc_layers.append(
-            nn.Linear(N, 2)
-        )
+        for _ in range(L_fc):
+            self.model.add(Dense(
+                N, activation='relu',
+                kernel_regularizer=l2(0.0001)
+            ))
 
-    def forward(self, x):
-        for l in self.conv_layers:
-            x = F.relu(l(x))
-        x = x.view(-1, self.fc_in_dim)
-        for l in self.fc_layers:
-            x = F.relu(l(x))
-        return x
+        self.model.add(Dense(2))
 
     def train(self, X, y, X_val, y_val,
             epochs=1000, batch_size=200, patience=100):
@@ -97,47 +66,21 @@ class Model(nn.Module):
         Returns:
             A float with time spent for training in sec.
         """
-        opt = Adam(lr=0.001, betas=(0.9, 0.999), eps=1e-08)
-        crit = nn.MSELoss()
-        
-        device = 'cuda'
-        metrics = {
-            'accuracy': Accuracy(),
-            'loss': Loss(crit)
-        }
-
-        trainer = create_supervised_trainer(self, opt, crit, device=device)
-
-        def score_function(engine):
-            val_loss = engine.state.metrics['loss']
-            return -val_loss
-
         early_stopping = EarlyStopping(
-            patience=patience,
-            score_function=score_function,
-            trainer=trainer
+            monitor='val_loss', patience=patience,
+            mode='auto', restore_best_weights=True
         )
 
-        train_evaluator = create_supervised_evaluator(
-            self, metrics=metrics, device=device
-        )
-        validation_evaluator = create_supervised_evaluator(
-            self, metrics=metrics, device=device
-        )
-
-        train_loader = DataLoader(
-            EyeGazeWrapper(X, y),
-            batch_size=batch_size,
-            shuffle=True
-        )
-        val_loader = DataLoader(
-            EyeGazeWrapper(X_val, y_val),
-            batch_size=batch_size,
-            shuffle=True
-        )
+        # Keras doesn't save optimizer together with the model
+        nadam_opt = Nadam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+        self.model.compile(loss='mean_squared_error', optimizer=nadam_opt)
 
         fit_time = time.time()
-        trainer.run(train_loader, max_epochs=epochs)
+        self.model.fit(
+            X, y, nb_epoch=epochs, batch_size=batch_size,
+            validation_data=(X_val, y_val), verbose=1,
+            callbacks=[early_stopping]
+        )
         return time.time() - fit_time
 
     def report_acc(self, X_train, y_train,
@@ -158,11 +101,11 @@ class Model(nn.Module):
             A tuple with spatial accuracies on training set, test set and
                 validation set.
         """
-        train_acc = calc_acc(y_train, self.forward(X_train))
-        test_acc = calc_acc(y_test, self.forward(X_test))
+        train_acc = calc_acc(y_train, self.model.predict(X_train))
+        test_acc = calc_acc(y_test, self.model.predict(X_test))
         val_acc = None
         if X_val is not None and y_val is not None:
-            val_acc = calc_acc(y_val, self.forward(X_val))
+            val_acc = calc_acc(y_val, self.model.predict(X_val))
         return train_acc, test_acc, val_acc
 
     def save_weights(self, model_path):
@@ -174,7 +117,7 @@ class Model(nn.Module):
         model_dir = str(Path(model_path).parent)
         if not os.path.exists(model_dir):
             os.mkdir(model_dir)
-        torch.save(self, model_path)
+        self.model.save(model_path)
 
     def load_weights(self, model_path):
         """Load model's weights.
@@ -182,23 +125,23 @@ class Model(nn.Module):
         Args:
             model_path: A string with full path for model to be loaded from.
         """
-        self.load_state_dict(torch.load(model_path))
-        self.eval()
+        self.model = load_model(model_path)
 
     def freeze_conv(self):
         """Freeze weights for convolutional layers of the self.
         """
-        for layer in self.conv_layers:
-            layer.weight.requires_grad = False
+        for layer in self.model.layers:
+            if layer.name.startswith('conv2d'):
+                layer.trainable = False
 
 CNN = Model
 
 class MLP(Model):
-    def __init__(self, layers, neurons, in_dim):
-        super().__init__(0, 0, layers, neurons, in_dim)
+    def __init__(self, layers, neurons):
+        super().__init__(0, 0, layers, neurons)
 
 # TODO: rewrite to factory
-def build_model(params, in_dim=None):
+def build_model(params):
     """The interface that should be used to obtain the instance of
         Model class with provided parameters.
     
@@ -220,7 +163,7 @@ def build_model(params, in_dim=None):
     K.clear_session()
     arch = get_arch(params) 
     if arch == 'mlp':
-        return MLP(*params[-2:], in_dim)
+        return MLP(*params[-2:])
     if arch == 'cnn':
         return CNN(*params)
     return None
