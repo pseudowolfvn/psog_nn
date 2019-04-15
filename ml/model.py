@@ -6,7 +6,7 @@ import time
 
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.optim import Adam
+from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
 
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
@@ -50,17 +50,17 @@ class Model(nn.Module):
         KERNEL_SIZE = 3
 
         for c in range(L_conv):
-            in_ch = 1 if c == 1 else D
+            in_ch = 1 if c == 0 else D
             out_ch = D
             self.conv_layers.append(
-                nn.Conv2D(
+                nn.Conv2d(
                     in_ch, out_ch,
-                    KERNEL_SIZE, padding=(KERNEL_SIZE - 1)/2
+                    KERNEL_SIZE, padding=(KERNEL_SIZE - 1)//2
                 )
             )
         self.fc_in_dim = 15*D if L_conv > 0 else in_dim
         for c in range(L_fc):
-            in_ch = self.fc_in_dim if c == 1 else N
+            in_ch = self.fc_in_dim if c == 0 else N
             out_ch = N
             self.fc_layers.append(
                 nn.Linear(in_ch, out_ch)
@@ -174,7 +174,7 @@ class Model(nn.Module):
         model_dir = str(Path(model_path).parent)
         if not os.path.exists(model_dir):
             os.mkdir(model_dir)
-        torch.save(self, model_path)
+        torch.save(self.state_dict(), model_path)
 
     def load_weights(self, model_path):
         """Load model's weights.
@@ -217,7 +217,6 @@ def build_model(params, in_dim=None):
         An instance of Model class that represents
             a model with corresponding parameters.
     """
-    K.clear_session()
     arch = get_arch(params) 
     if arch == 'mlp':
         return MLP(*params[-2:], in_dim)
