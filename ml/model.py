@@ -4,22 +4,23 @@ import os
 from pathlib import Path
 import time
 
+from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
+from ignite.handlers import EarlyStopping
+from ignite.metrics import Accuracy, Loss
+import numpy as np
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
-
-from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
-from ignite.handlers import EarlyStopping
-from ignite.metrics import Accuracy, Loss
-
+from tqdm import tqdm
 from utils.metrics import calc_acc
 from utils.utils import get_arch
 
 class EyeGazeWrapper(Dataset):
     def __init__(self, X, y):
-        self.X = X
-        self.y = y
+        self.X = torch.from_numpy(X).float()
+        self.y = torch.from_numpy(y).float()
 
     def __len__(self):
         return self.X.shape[0]
@@ -44,41 +45,84 @@ class Model(nn.Module):
             N: number of neurons in each fully-connected layer.
         """
         super().__init__()
-        self.conv_layers = []
-        self.fc_layers = []
+
+        self.device = torch.device('cuda') if torch.cuda.is_available() \
+            else torch.device('cpu')
 
         KERNEL_SIZE = 3
 
         for c in range(L_conv):
             in_ch = 1 if c == 0 else D
             out_ch = D
-            self.conv_layers.append(
+            self.add_module(
+                'conv' + str(c),
                 nn.Conv2d(
                     in_ch, out_ch,
                     KERNEL_SIZE, padding=(KERNEL_SIZE - 1)//2
                 )
             )
+
         self.fc_in_dim = 15*D if L_conv > 0 else in_dim
+        self.has_conv = L_conv > 0
+
         for c in range(L_fc):
             in_ch = self.fc_in_dim if c == 0 else N
             out_ch = N
-            self.fc_layers.append(
+            self.add_module(
+                'fc' + str(c),
                 nn.Linear(in_ch, out_ch)
             )
 
-        self.fc_layers.append(
+        self.add_module(
+            'out',
             nn.Linear(N, 2)
         )
 
     def forward(self, x):
-        for l in self.conv_layers:
+        x.to(self.device)
+        flattened = False
+        for name, l in self.named_children():
+            if not flattened and self.has_conv and name.startswith('fc'):
+                x = x.view(-1, self.fc_in_dim)
+                flattened = True
             x = F.relu(l(x))
-        x = x.view(-1, self.fc_in_dim)
-        for l in self.fc_layers:
-            x = F.relu(l(x))
+
         return x
 
-    def train(self, X, y, X_val, y_val,
+    def _attach_loggers(self, trainer, evaluator, train_loader, val_loader, log_interval=10):
+        desc = "ITERATION - loss: {:.2f}"
+        pbar = tqdm(
+            initial=0, leave=False, total=len(train_loader),
+            desc=desc.format(0)
+        )
+
+        @trainer.on(Events.ITERATION_COMPLETED)
+        def log_training_loss(engine):
+            iter = (engine.state.iteration - 1) % len(train_loader) + 1
+
+            if iter % log_interval == 0:
+                pbar.desc = desc.format(engine.state.output)
+                pbar.update(log_interval)
+
+        @trainer.on(Events.EPOCH_COMPLETED)
+        def log_training_results(engine):
+            pbar.refresh()
+            evaluator.run(train_loader)
+            tqdm.write(
+                "Training Results - Epoch: {}  Avg loss: {:.2f}"
+                .format(engine.state.epoch, evaluator.state.metrics['loss'])
+            )
+
+        @trainer.on(Events.EPOCH_COMPLETED)
+        def log_validation_results(engine):
+            evaluator.run(val_loader)
+            tqdm.write(
+                "Validation Results - Epoch: {}  Avg loss: {:.2f}"
+                .format(engine.state.epoch, evaluator.state.metrics['loss'])
+            )
+            pbar.n = pbar.last_print_n = 0
+
+    def fit(self, X, y, X_val, y_val,
             epochs=1000, batch_size=200, patience=100):
         """Train the model.
 
@@ -97,16 +141,14 @@ class Model(nn.Module):
         Returns:
             A float with time spent for training in sec.
         """
-        opt = Adam(lr=0.001, betas=(0.9, 0.999), eps=1e-08)
+        opt = Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
         crit = nn.MSELoss()
-        
-        device = 'cuda'
+
         metrics = {
-            'accuracy': Accuracy(),
             'loss': Loss(crit)
         }
 
-        trainer = create_supervised_trainer(self, opt, crit, device=device)
+        trainer = create_supervised_trainer(self, opt, crit, device=self.device)
 
         def score_function(engine):
             val_loss = engine.state.metrics['loss']
@@ -118,11 +160,8 @@ class Model(nn.Module):
             trainer=trainer
         )
 
-        train_evaluator = create_supervised_evaluator(
-            self, metrics=metrics, device=device
-        )
-        validation_evaluator = create_supervised_evaluator(
-            self, metrics=metrics, device=device
+        evaluator = create_supervised_evaluator(
+            self, metrics=metrics, device=self.device
         )
 
         train_loader = DataLoader(
@@ -136,9 +175,23 @@ class Model(nn.Module):
             shuffle=True
         )
 
+        self._attach_loggers(trainer, evaluator, train_loader, val_loader)
+
         fit_time = time.time()
         trainer.run(train_loader, max_epochs=epochs)
         return time.time() - fit_time
+
+    def _tensor_from_numpy(self, X):
+        return torch.tensor(X).float().to(self.device)
+
+    def _numpy_from_tensor(self, X):
+        return X.detach().cpu().numpy()
+
+    def _predict(self, X, y):
+        X = self._tensor_from_numpy(X)
+        y_pred = self(X)
+        acc = calc_acc(y, self._numpy_from_tensor(y_pred))
+        return acc
 
     def report_acc(self, X_train, y_train,
             X_test, y_test, X_val=None, y_val=None):
@@ -158,11 +211,13 @@ class Model(nn.Module):
             A tuple with spatial accuracies on training set, test set and
                 validation set.
         """
-        train_acc = calc_acc(y_train, self.forward(X_train))
-        test_acc = calc_acc(y_test, self.forward(X_test))
+        train_acc = self._predict(X_train, y_train)
+        test_acc = self._predict(X_test, y_test)
+
         val_acc = None
         if X_val is not None and y_val is not None:
-            val_acc = calc_acc(y_val, self.forward(X_val))
+            val_acc = self._predict(X_val, y_val)
+
         return train_acc, test_acc, val_acc
 
     def save_weights(self, model_path):
@@ -188,8 +243,9 @@ class Model(nn.Module):
     def freeze_conv(self):
         """Freeze weights for convolutional layers of the self.
         """
-        for layer in self.conv_layers:
-            layer.weight.requires_grad = False
+        for name, layer in self.named_children():
+            if name.startswith('conv'):
+                layer.requires_grad = False
 
 CNN = Model
 
