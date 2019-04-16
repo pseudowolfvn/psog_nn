@@ -34,7 +34,7 @@ def train_from_scratch(root, subj, params,
         data_source(root, subj, get_arch(params))
 
     model = build_model(params)
-    fit_time = model.train(
+    fit_time = model.fit(
         X_train, y_train, X_val, y_val,
         **learning_config
     )
