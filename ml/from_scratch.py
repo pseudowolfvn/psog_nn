@@ -33,7 +33,9 @@ def train_from_scratch(root, subj, params,
     X_train, X_val, X_test, y_train, y_val, y_test = \
         data_source(root, subj, get_arch(params))
 
-    model = build_model(params)
+    in_dim = None if len(X_train.shape) > 2 else X_train.shape[-1]
+    print('DEBUG: ', X_train.shape)
+    model = build_model(params, in_dim)
     fit_time = model.fit(
         X_train, y_train, X_val, y_val,
         **learning_config

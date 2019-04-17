@@ -19,8 +19,8 @@ from utils.utils import get_arch
 
 class EyeGazeWrapper(Dataset):
     def __init__(self, X, y):
-        self.X = torch.from_numpy(X).float()
-        self.y = torch.from_numpy(y).float()
+        self.X = torch.from_numpy(X).float().to('cuda')
+        self.y = torch.from_numpy(y).float().to('cuda')
 
     def __len__(self):
         return self.X.shape[0]
@@ -164,8 +164,9 @@ class Model(nn.Module):
             self, metrics=metrics, device=self.device
         )
 
+        train_dataset = EyeGazeWrapper(X, y)
         train_loader = DataLoader(
-            EyeGazeWrapper(X, y),
+            train_dataset,
             batch_size=batch_size,
             shuffle=True
         )
@@ -175,10 +176,26 @@ class Model(nn.Module):
             shuffle=True
         )
 
-        self._attach_loggers(trainer, evaluator, train_loader, val_loader)
+        # self._attach_loggers(trainer, evaluator, train_loader, val_loader)
 
         fit_time = time.time()
-        trainer.run(train_loader, max_epochs=epochs)
+        # trainer.run(train_loader, max_epochs=epochs)
+
+        # TEMP CODE
+        for epoch in range(epochs):
+            for i, data in enumerate(train_loader):
+                batch_x, batch_y_gt = data
+                batch_y_pred = self(batch_x)
+
+                opt.zero_grad()
+                loss = crit(batch_y_pred, batch_y_gt)
+
+                loss.backward()
+                opt.step()
+
+            train_x, train_y = train_dataset.X, train_dataset.y
+            print(epoch, ':', crit(self(train_x), train_y))
+
         return time.time() - fit_time
 
     def _tensor_from_numpy(self, X):
