@@ -85,7 +85,7 @@ class Model(nn.Module):
             if not flattened and self.has_conv and name.startswith('fc'):
                 x = x.view(-1, self.fc_in_dim)
                 flattened = True
-            x = F.relu(l(x))
+            x = F.relu(l(x)) if not name.startswith('out') else l(x)
 
         return x
 
