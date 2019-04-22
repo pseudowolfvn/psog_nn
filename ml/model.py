@@ -78,8 +78,9 @@ class Model(nn.Module):
             nn.Linear(N, 2)
         )
 
+        self.to(self.device)
+
     def forward(self, x):
-        x.to(self.device)
         flattened = False
         for name, l in self.named_children():
             if not flattened and self.has_conv and name.startswith('fc'):
@@ -176,25 +177,26 @@ class Model(nn.Module):
             shuffle=True
         )
 
-        # self._attach_loggers(trainer, evaluator, train_loader, val_loader)
+        self._attach_loggers(trainer, evaluator, train_loader, val_loader)
+        evaluator.add_event_handler(Events.COMPLETED, early_stopping)
 
         fit_time = time.time()
-        # trainer.run(train_loader, max_epochs=epochs)
+        trainer.run(train_loader, max_epochs=epochs)
 
         # TEMP CODE
-        for epoch in range(epochs):
-            for i, data in enumerate(train_loader):
-                batch_x, batch_y_gt = data
-                batch_y_pred = self(batch_x)
+        # for epoch in range(epochs):
+        #     for i, data in enumerate(train_loader):
+        #         batch_x, batch_y_gt = data
+        #         batch_y_pred = self(batch_x)
 
-                opt.zero_grad()
-                loss = crit(batch_y_pred, batch_y_gt)
+        #         opt.zero_grad()
+        #         loss = crit(batch_y_pred, batch_y_gt)
 
-                loss.backward()
-                opt.step()
+        #         loss.backward()
+        #         opt.step()
 
-            train_x, train_y = train_dataset.X, train_dataset.y
-            print(epoch, ':', crit(self(train_x), train_y))
+        #     train_x, train_y = train_dataset.X, train_dataset.y
+        #     print(epoch, ':', crit(self(train_x), train_y))
 
         return time.time() - fit_time
 
