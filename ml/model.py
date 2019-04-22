@@ -12,21 +12,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 from utils.metrics import calc_acc
 from utils.utils import get_arch
-
-class EyeGazeWrapper(Dataset):
-    def __init__(self, X, y):
-        self.X = torch.from_numpy(X).float().to('cuda')
-        self.y = torch.from_numpy(y).float().to('cuda')
-
-    def __len__(self):
-        return self.X.shape[0]
-
-    def __getitem__(self, index):
-        return self.X[index], self.y[index]
 
 
 class Model(nn.Module):
@@ -90,39 +79,6 @@ class Model(nn.Module):
 
         return x
 
-    def _attach_loggers(self, trainer, evaluator, train_loader, val_loader, log_interval=10):
-        desc = "ITERATION - loss: {:.2f}"
-        pbar = tqdm(
-            initial=0, leave=False, total=len(train_loader),
-            desc=desc.format(0)
-        )
-
-        @trainer.on(Events.ITERATION_COMPLETED)
-        def log_training_loss(engine):
-            iter = (engine.state.iteration - 1) % len(train_loader) + 1
-
-            if iter % log_interval == 0:
-                pbar.desc = desc.format(engine.state.output)
-                pbar.update(log_interval)
-
-        @trainer.on(Events.EPOCH_COMPLETED)
-        def log_training_results(engine):
-            pbar.refresh()
-            evaluator.run(train_loader)
-            tqdm.write(
-                "Training Results - Epoch: {}  Avg loss: {:.2f}"
-                .format(engine.state.epoch, evaluator.state.metrics['loss'])
-            )
-
-        @trainer.on(Events.EPOCH_COMPLETED)
-        def log_validation_results(engine):
-            evaluator.run(val_loader)
-            tqdm.write(
-                "Validation Results - Epoch: {}  Avg loss: {:.2f}"
-                .format(engine.state.epoch, evaluator.state.metrics['loss'])
-            )
-            pbar.n = pbar.last_print_n = 0
-
     def fit(self, X, y, X_val, y_val,
             epochs=1000, batch_size=200, patience=100):
         """Train the model.
@@ -145,58 +101,50 @@ class Model(nn.Module):
         opt = Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
         crit = nn.MSELoss()
 
-        metrics = {
-            'loss': Loss(crit)
-        }
+        N = X.shape[0]
+        X = self._tensor_from_numpy(X)
+        y = self._tensor_from_numpy(y)
 
-        trainer = create_supervised_trainer(self, opt, crit, device=self.device)
-
-        def score_function(engine):
-            val_loss = engine.state.metrics['loss']
-            return -val_loss
-
-        early_stopping = EarlyStopping(
-            patience=patience,
-            score_function=score_function,
-            trainer=trainer
-        )
-
-        evaluator = create_supervised_evaluator(
-            self, metrics=metrics, device=self.device
-        )
-
-        train_dataset = EyeGazeWrapper(X, y)
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=batch_size,
-            shuffle=True
-        )
-        val_loader = DataLoader(
-            EyeGazeWrapper(X_val, y_val),
-            batch_size=batch_size,
-            shuffle=True
-        )
-
-        self._attach_loggers(trainer, evaluator, train_loader, val_loader)
-        evaluator.add_event_handler(Events.COMPLETED, early_stopping)
+        X_val = self._tensor_from_numpy(X_val)
+        y_val = self._tensor_from_numpy(y_val)
 
         fit_time = time.time()
-        trainer.run(train_loader, max_epochs=epochs)
+
+        counter = 0
+        best_loss = None
 
         # TEMP CODE
-        # for epoch in range(epochs):
-        #     for i, data in enumerate(train_loader):
-        #         batch_x, batch_y_gt = data
-        #         batch_y_pred = self(batch_x)
+        for epoch in range(epochs):
+            epoch_ind = torch.randperm(N)
+            for i in range(N // batch_size):
+                batch_ind = epoch_ind[i*batch_size: (i + 1)*batch_size]
+                batch_X, batch_y_gt = X[batch_ind, :], y[batch_ind, :]
+                batch_y_pred = self(batch_X)
 
-        #         opt.zero_grad()
-        #         loss = crit(batch_y_pred, batch_y_gt)
+                opt.zero_grad()
+                loss = crit(batch_y_pred, batch_y_gt)
 
-        #         loss.backward()
-        #         opt.step()
+                loss.backward()
+                opt.step()
 
-        #     train_x, train_y = train_dataset.X, train_dataset.y
-        #     print(epoch, ':', crit(self(train_x), train_y))
+            train_loss = crit(self(X), y).item()
+            val_loss = crit(self(X_val), y_val).item()
+
+            epoch_str = 'Epoch: {:>5};'.format(epoch)
+            loss_str = 'Train loss: {:>7.3f}; Val loss: {:>7.3f}'.format(train_loss, val_loss)
+            print(epoch_str, loss_str)
+
+            # Early stopping
+            if best_loss is None:
+                best_loss = val_loss
+            elif val_loss >= best_loss:
+                counter += 1
+                if counter >= patience:
+                    print('Early stopping triggered')
+                    break
+            else:
+                best_loss = val_loss
+                counter = 0
 
         return time.time() - fit_time
 
