@@ -11,9 +11,9 @@ from ml.general_analysis import evaluate_study
 from ml.grid_search import grid_search
 from ml.time_analysis import evaluate_time
 from ml.calib_analysis import evaluate_calib
-from plots.boxplots_per_subject import plot_boxplots
-from plots.error_bars import plot_error_bars
-from plots.samples_distrib import draw_samples
+# from plots.boxplots_per_subject import plot_boxplots
+# from plots.error_bars import plot_error_bars
+# from plots.samples_distrib import draw_samples
 from utils.utils import none_if_empty, list_if_not
 
 
@@ -207,4 +207,5 @@ def run_cli():
             draw_samples(dataset_root, subj_ids)
 
 if __name__ == '__main__':
-    run_cli()
+    # run_cli()
+    from ml.from_scratch import train_from_scratch; root = r'D:\DmytroKatrychuk\dev\research\dataset\psog_nn\dataset'; subj = '1'; params = (0,0,4,96); train_from_scratch(root, subj, params, {'epochs':100})

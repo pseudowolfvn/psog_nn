@@ -45,5 +45,6 @@ def train_from_scratch(root, subj, params,
     train_acc, test_acc, _ = model.report_acc(X_train, y_train, X_test, y_test)
     print('Train acc: ', train_acc)
     print('Test acc: ', test_acc)
+    print('Fit time: ', fit_time)
 
     return train_acc, test_acc, fit_time

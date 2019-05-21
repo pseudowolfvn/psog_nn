@@ -47,7 +47,7 @@ class Model:
 
         self.model.add(Dense(2))
 
-    def train(self, X, y, X_val, y_val,
+    def fit(self, X, y, X_val, y_val,
             epochs=1000, batch_size=200, patience=100):
         """Train the model.
 
@@ -141,7 +141,7 @@ class MLP(Model):
         super().__init__(0, 0, layers, neurons)
 
 # TODO: rewrite to factory
-def build_model(params):
+def build_model(params, in_dim=None):
     """The interface that should be used to obtain the instance of
         Model class with provided parameters.
     
