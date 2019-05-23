@@ -35,11 +35,8 @@ def train_from_scratch(root, subj, params,
 
     in_dim = None if len(X_train.shape) > 2 else X_train.shape[-1]
     print('DEBUG: ', X_train.shape)
-    model = build_model(params, in_dim)
-    fit_time = model.fit(
-        X_train, y_train, X_val, y_val,
-        **learning_config
-    )
+    model = build_model(params, in_dim, learning_config)
+    fit_time = model.fit(X_train, y_train, X_val, y_val)
 
     print('Model ' + get_model_path(subj, params) + ' trained from scratch')
     train_acc, test_acc, _ = model.report_acc(X_train, y_train, X_test, y_test)

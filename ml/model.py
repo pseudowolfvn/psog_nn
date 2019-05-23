@@ -17,12 +17,13 @@ from tqdm import tqdm
 from utils.metrics import calc_acc
 from utils.utils import get_arch
 
+from ml.utils import default_config_if_none
 
 class Model(nn.Module):
     """Class that provides that wraps a Keras-based neural network model
         and provides an interface for its evaluation.
     """
-    def __init__(self, L_conv, D, L_fc, N, in_dim=None):
+    def __init__(self, L_conv, D, L_fc, N, in_dim=None, learning_config=None):
         """Inits Model with corresponding paramaters.
 
         Args:
@@ -34,6 +35,11 @@ class Model(nn.Module):
             N: number of neurons in each fully-connected layer.
         """
         super().__init__()
+
+        self.learning_config = default_config_if_none(learning_config)
+        seed = self.learning_config['seed']
+        torch.manual_seed(seed)
+        np.random.seed(seed)
 
         self.device = torch.device('cuda') if torch.cuda.is_available() \
             else torch.device('cpu')
@@ -79,8 +85,7 @@ class Model(nn.Module):
 
         return x
 
-    def fit(self, X, y, X_val, y_val,
-            epochs=1000, batch_size=200, patience=100):
+    def fit(self, X, y, X_val, y_val):
         """Train the model.
 
         Args:
@@ -98,6 +103,10 @@ class Model(nn.Module):
         Returns:
             A float with time spent for training in sec.
         """
+        epochs = self.learning_config['epochs']
+        batch_size = self.learning_config['batch_size']
+        patience = self.learning_config['patience']
+
         opt = Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
         crit = nn.MSELoss()
 
@@ -131,7 +140,9 @@ class Model(nn.Module):
             val_loss = crit(self(X_val), y_val).item()
 
             epoch_str = 'Epoch: {:>5};'.format(epoch)
-            loss_str = 'Train loss: {:>7.3f}; Val loss: {:>7.3f}'.format(train_loss, val_loss)
+            loss_str = 'Train loss: {:>7.3f}; Val loss: {:>7.3f}'.format(
+                train_loss, val_loss
+            )
             print(epoch_str, loss_str)
 
             # Early stopping
@@ -214,14 +225,8 @@ class Model(nn.Module):
             if name.startswith('conv'):
                 layer.requires_grad = False
 
-CNN = Model
-
-class MLP(Model):
-    def __init__(self, layers, neurons, in_dim):
-        super().__init__(0, 0, layers, neurons, in_dim)
-
 # TODO: rewrite to factory
-def build_model(params, in_dim=None):
+def build_model(params, in_dim=None, learning_config=None):
     """The interface that should be used to obtain the instance of
         Model class with provided parameters.
     
@@ -240,9 +245,6 @@ def build_model(params, in_dim=None):
         An instance of Model class that represents
             a model with corresponding parameters.
     """
-    arch = get_arch(params) 
-    if arch == 'mlp':
-        return MLP(*params[-2:], in_dim)
-    if arch == 'cnn':
-        return CNN(*params)
-    return None
+    if len(params) == 2:
+        params = (0, 0, *params)
+    return Model(*params, in_dim, learning_config)

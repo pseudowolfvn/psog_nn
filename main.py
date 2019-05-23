@@ -208,4 +208,8 @@ def run_cli():
 
 if __name__ == '__main__':
     # run_cli()
-    from ml.from_scratch import train_from_scratch; root = r'D:\DmytroKatrychuk\dev\research\dataset\psog_nn\dataset'; subj = '1'; params = (0,0,4,96); train_from_scratch(root, subj, params, {'epochs':100})
+    from ml.from_scratch import train_from_scratch
+    root = r'D:\DmytroKatrychuk\dev\research\dataset\psog_nn\dataset'
+    subj = '1'
+    params = (0,0,4,96)
+    train_from_scratch(root, subj, params, {'epochs':500, 'batch_size':1000, 'patience': 50})

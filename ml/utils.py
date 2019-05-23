@@ -18,11 +18,13 @@ def default_config_if_none(learning_config):
             otherwise default training config.
     """
     if learning_config is None:
-        learning_config = {
-            'batch_size': 200,
-            'epochs': 1000,
-            'patience': 50,
-        }
+        learning_config = {}
+
+    learning_config.setdefault('batch_size', 200)
+    learning_config.setdefault('epochs', 1000)
+    learning_config.setdefault('patience', 50)
+    learning_config.setdefault('seed', 42)
+
     return learning_config
 
 def get_module_prefix():
