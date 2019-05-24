@@ -118,7 +118,7 @@ def grid_search_arch_setup(
 
                     model = build_model(
                         (L_conv, D, L_fc, N),
-                        n_pca, {'batch_size': 2000}
+                        in_dim=n_pca, learning_config={'batch_size': 2000}
                     )
                     fit_time = model.fit(X_train, y_train, X_val, y_val)
 

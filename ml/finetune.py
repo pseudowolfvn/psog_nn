@@ -30,8 +30,8 @@ def train_and_save(root, train_subjs, test_subjs, params, load=False):
     X_train, X_val, X_test, y_train, y_val, y_test = \
         get_general_data(root, train_subjs, test_subjs, get_arch(params))
 
-    in_dim = None if len(X_train.shape) > 2 else X_train.shape[-1]
-    model = build_model(params, in_dim, {'batch_size': 2000})
+    dim = None if len(X_train.shape) > 2 else X_train.shape[-1]
+    model = build_model(params, in_dim=dim, learning_config={'batch_size': 2000})
 
     model.fit(X_train, y_train, X_val, y_val)
     model.save_weights(model_path)
@@ -62,7 +62,7 @@ def load_and_finetune(root, train_subjs, subj, params,
         A tuple with spatial accuracies on train set, test set
             and time spent for training.
     """
-    learning_config = default_config_if_none(learning_config)
+    config = default_config_if_none(learning_config)
     data_source = default_source_if_none(data_source)
 
     arch = get_arch(params)
@@ -70,8 +70,8 @@ def load_and_finetune(root, train_subjs, subj, params,
     X_train, X_val, X_test, y_train, y_val, y_test = \
         data_source(root, subj, arch, train_subjs)
 
-    in_dim = None if len(X_train.shape) > 2 else X_train.shape[-1]
-    model = build_model(params, in_dim)
+    dim = None if len(X_train.shape) > 2 else X_train.shape[-1]
+    model = build_model(params, in_dim=dim, learning_config=config)
     model_path = get_model_path(train_subjs, params)
     model.load_weights(model_path)
 

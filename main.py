@@ -206,10 +206,77 @@ def run_cli():
             subj_ids = none_if_empty(args.samples_distrib)
             draw_samples(dataset_root, subj_ids)
 
+from ml.from_scratch import train_from_scratch
+import numpy as np
+
+def get_acc_time(root, subj, params, config, impl):
+    accs = []
+    times = []
+    for i in range(5):
+        config['seed'] = i
+        _, acc, fit_time = train_from_scratch(
+            root, subj, params, learning_config=config, impl=impl
+        )
+        accs.append(acc)
+        times.append(fit_time)
+
+    return np.array(accs), np.array(times)
+
+def run_subj_comp(subj):
+    root = r'D:\DmytroKatrychuk\dev\research\dataset\psog_nn\dataset'
+    params = (2,4,4,20)
+    config = {'epochs':500, 'batch_size':1000, 'patience': 50}
+
+    torch_acc, torch_time = get_acc_time(root, subj, params, config, 'torch')
+    keras_acc, keras_time = get_acc_time(root, subj, params, config, 'keras')
+
+    return keras_acc, keras_time, torch_acc, torch_time
+
+def calc_stats(acc, time):
+    return {
+        'acc': {
+            'mean': np.mean(acc),
+            'std': np.std(acc)
+        },
+        'time': {
+            'mean': np.mean(time),
+            'std': np.std(time)
+        }
+    }
+
+def report_stats(stats):
+    print(
+        'Accuracy, mean: {:.2f}, std: {:.2f}'.format(
+            stats['acc']['mean'],
+            stats['acc']['std']
+        )
+    )
+    print(
+        'Time, mean: {:.2f}, std: {:.2f}'.format(
+            stats['time']['mean'],
+            stats['time']['std']
+        )
+    )
+
+def run_keras_torch_comp():
+    keras_stats = {}
+    torch_stats = {}
+
+    for i in range(1, 24):
+        keras_acc, keras_time, torch_acc, torch_time = run_subj_comp(str(i))
+        keras_stats[i] = calc_stats(keras_acc, keras_time)
+        torch_stats[i] = calc_stats(torch_acc, torch_time)
+
+    for i in range(1, 24):
+        print('Subject', i)
+
+        print('KERAS')
+        report_stats(keras_stats[i])
+        
+        print('TORCH')
+        report_stats(torch_stats[i])
+
+
 if __name__ == '__main__':
     # run_cli()
-    from ml.from_scratch import train_from_scratch
-    root = r'D:\DmytroKatrychuk\dev\research\dataset\psog_nn\dataset'
-    subj = '1'
-    params = (0,0,4,96)
-    train_from_scratch(root, subj, params, {'epochs':500, 'batch_size':1000, 'patience': 50})
+    run_keras_torch_comp()

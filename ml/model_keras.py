@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 import time
 
-from keras import backend as K
 from keras.callbacks import EarlyStopping
 from keras.layers.convolutional import Conv2D
 from keras.layers.core import Dense, Flatten
@@ -12,15 +11,15 @@ from keras.models import Sequential, load_model
 from keras.optimizers import Nadam
 from keras.regularizers import l2
 
+from ml.utils import default_config_if_none
 from utils.metrics import calc_acc
-from utils.utils import get_arch
 
 
 class Model:
     """Class that provides that wraps a Keras-based neural network model
         and provides an interface for its evaluation.
     """
-    def __init__(self, L_conv, D, L_fc, N):
+    def __init__(self, L_conv, D, L_fc, N, learning_config=None):
         """Inits Model with corresponding paramaters.
 
         Args:
@@ -31,6 +30,8 @@ class Model:
             L_fc: number of fully-connected layers.
             N: number of neurons in each fully-connected layer.
         """
+        self.learning_config = default_config_if_none(learning_config)
+
         self.model = Sequential()
 
         for _ in range(L_conv):
@@ -47,8 +48,7 @@ class Model:
 
         self.model.add(Dense(2))
 
-    def fit(self, X, y, X_val, y_val,
-            epochs=1000, batch_size=200, patience=100):
+    def fit(self, X, y, X_val, y_val):
         """Train the model.
 
         Args:
@@ -66,6 +66,10 @@ class Model:
         Returns:
             A float with time spent for training in sec.
         """
+        epochs = self.learning_config['epochs']
+        batch_size = self.learning_config['batch_size']
+        patience = self.learning_config['patience']
+
         early_stopping = EarlyStopping(
             monitor='val_loss', patience=patience,
             mode='auto', restore_best_weights=True
@@ -133,37 +137,3 @@ class Model:
         for layer in self.model.layers:
             if layer.name.startswith('conv2d'):
                 layer.trainable = False
-
-CNN = Model
-
-class MLP(Model):
-    def __init__(self, layers, neurons):
-        super().__init__(0, 0, layers, neurons)
-
-# TODO: rewrite to factory
-def build_model(params, in_dim=None):
-    """The interface that should be used to obtain the instance of
-        Model class with provided parameters.
-    
-    Args:
-        params: A tuple with neural network paramters 
-            with the following format: (
-                <number of convolutional layers
-                    if any, 0 otherwise>,
-                <number of filters in each convolutional layer
-                    if any, 0 otherwise>,
-                <number of fully-connected layers>,
-                <number of neurons in each fully-connected layer>
-            ).
-
-    Returns:
-        An instance of Model class that represents
-            a model with corresponding parameters.
-    """
-    K.clear_session()
-    arch = get_arch(params) 
-    if arch == 'mlp':
-        return MLP(*params[-2:])
-    if arch == 'cnn':
-        return CNN(*params)
-    return None
