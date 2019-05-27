@@ -263,6 +263,11 @@ def split_test_from_all(test_subjs):
             train_subjs.append(subj)
     return train_subjs, test_subjs
 
+def default_split_if_none(split_source):
+    if split_source is None:
+        split_source = get_default_subjs_split
+    return split_source
+
 def get_default_subjs_split():
     """Get default split into test set subjects ids chunks.
 
@@ -277,6 +282,9 @@ def get_default_subjs_split():
         ['17', '18', '19', '20'],
         ['21', '22', '23']
     ]
+
+def get_loo_subjs_split():
+    return [[str(i)] for i in range(1, 24)]
 
 def find_train_test_split(subj):
     """Get split of the whole dataset into train and

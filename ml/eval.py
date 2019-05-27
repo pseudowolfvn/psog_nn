@@ -9,7 +9,7 @@ from sklearn.externals import joblib
 from ml.finetune import train_and_save, load_and_finetune
 from ml.from_scratch import train_from_scratch
 from ml.grid_search import get_best_model_params
-from ml.load_data import split_test_from_all, get_default_subjs_split
+from ml.load_data import split_test_from_all, default_split_if_none
 from ml.utils import get_module_prefix
 from utils.utils import get_arch
 
@@ -152,7 +152,7 @@ class StudyEvaluation:
             else:
                 self.results[k] = v
 
-    def run(self, learning_config=None, reps=10):
+    def run(self, learning_config=None, reps=10, split_source=None):
         """Main method to run the general study evaluation
             for the whole dataset.
 
@@ -185,7 +185,9 @@ class StudyEvaluation:
         # more than once. Without it, after first call, first element 
         # of the following array containes all IDs.
         # TODO: find the source of bug
-        subjs_split = get_default_subjs_split()
+        split_source = default_split_if_none(split_source)
+
+        subjs_split = split_source()
         self.results = {}
 
         for arch in self.archs:
