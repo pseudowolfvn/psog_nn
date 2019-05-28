@@ -13,7 +13,7 @@ from preproc.psog import PSOG
 from utils.utils import list_if_not, deg_to_pix
 
 
-def get_subj_data(subj_root, sensor=None):
+def get_subj_data(subj_root, sensor=None, with_shifts=False):
     """Get data for provided subject.
 
     Args:
@@ -33,12 +33,14 @@ def get_subj_data(subj_root, sensor=None):
 
     data = filter_outliers(data)
 
-    X = data[sensor.get_names()].values
+    X_cols = sensor.get_names() + (['sh_hor', 'sh_ver'] if with_shifts else [])
+    print('DEBUG: ', X_cols)
+    X = data[X_cols].values
     y = data[['pos_x', 'pos_y']].values
 
     return X, y
 
-def get_data(root, subj_ids=None):
+def get_data(root, subj_ids=None, with_shifts=False):
     """Get data for the provided list of subjects.
 
     Args:
@@ -62,7 +64,7 @@ def get_data(root, subj_ids=None):
         if subj_ids is not None and dirname not in subj_ids:
             continue
         subj_root = os.path.join(root, dirname)
-        X, y = get_subj_data(subj_root, sensor)
+        X, y = get_subj_data(subj_root, sensor, with_shifts=with_shifts)
 
         X_data.extend(X)
         y_data.extend(y)
@@ -137,6 +139,32 @@ def get_specific_data(root, subj, arch, train_subjs=None):
     X_train, X_val, y_train, y_val = train_test_split(
         X_train, y_train, test_size=0.2, random_state=42)
 
+    if arch == 'cnn':
+        X_train, X_val, X_test = reshape_into_grid(X_train, X_val, X_test)
+
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+def get_shifts_split_data(root, subj, arch, train_subjs=None):
+    X_train, y_train = get_data(root, subj, with_shifts=True)
+
+    mask = np.rint(X_train[:, -2:] / 0.5)
+    train_ind = np.where((mask % 2).any(axis=1))[0]
+    test_ind = []
+    for i in range(X_train.shape[0]):
+        if i not in train_ind:
+            test_ind.append(i)
+
+    X_test = X_train[:, :-2][test_ind]
+    y_test = y_train[test_ind]
+
+    X_train = X_train[:, :-2][train_ind]
+    y_train = y_train[train_ind]
+
+    X_train, X_test = normalize(X_train, X_test, arch, train_subjs)
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train, y_train, test_size=0.2, random_state=42)
+
+    print(X_train.shape, X_val.shape, X_test.shape)
     if arch == 'cnn':
         X_train, X_val, X_test = reshape_into_grid(X_train, X_val, X_test)
 
