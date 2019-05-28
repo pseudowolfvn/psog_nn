@@ -8,25 +8,22 @@ import numpy as np
 import pandas as pd
 from skimage.io import imread, imsave
 
+from preproc.utils import get_default_shifts
 from utils.gens import ImgPathGenerator
 from utils.utils import repeat_up_to, calc_pad_size, do_sufficient_pad
 
 
-def add_sensor_shifts(data, hor, ver):
-    """Add columns with array of all possible simulated sensor shifts,
-        that is repeated in a cyclic way to match the size of data.
+def add_sensor_shifts(data, shifts):
+    """Add columns with array of provided simulated sensor shifts.
 
     Args:
         data: A pandas DataFrame with eye-movement signal.
-        hor: A list of all possible values for sensor shift horizontally.
-        ver: A list of all possible values for sensor shift vertically.
+        shifts: A numpy array of (N, 2) shape where
+            columns represent horizontal and vertical shifts.
 
     Returns:
         A DataFrame with added columns.
     """
-    shift_pairs = np.array([(h, v) for h in hor for v in ver])
-    shifts = repeat_up_to(shift_pairs, data.dropna().shape[0])
-
     data.loc[data.dropna().index, 'sh_hor'] = shifts[:, 0]
     data.loc[data.dropna().index, 'sh_ver'] = shifts[:, 1]
     return data
@@ -126,8 +123,8 @@ def shift_and_crop_subj(subj_root):
 
     data = rename_subset(data)
 
-    shift_range = np.arange(-2., 2. + 0.1, 0.5)
-    data = add_sensor_shifts(data, shift_range, shift_range)
+    shifts = get_default_shifts(data.dropna().shape[0])
+    data = add_sensor_shifts(data, shifts)
 
     with open(os.path.join(img_paths.get_root(), 'head_mov.txt'), 'r') as file:
         head_mov_data = [
