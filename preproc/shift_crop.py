@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from skimage.io import imread, imsave
 
-from preproc.utils import get_default_shifts
+from preproc.utils import get_default_shifts, get_randn_shifts
 from utils.gens import ImgPathGenerator
 from utils.utils import repeat_up_to, calc_pad_size, do_sufficient_pad
 
@@ -39,7 +39,7 @@ def shift_mm_to_pix(sh):
     """
     STEP = 0.5
     PIX_TO_MM = 4
-    return int(round(sh / STEP)) * PIX_TO_MM
+    return int(round(sh / STEP * PIX_TO_MM))
 
 def get_shifted_crop(img, center, head_mov, sample):
     """Crop provided image to 320x240 close eye capture correcting for
@@ -108,7 +108,7 @@ def shift_and_crop_subj(subj_root):
 
     img_paths = ImgPathGenerator(subj_root)
 
-    output_dir = os.path.join(subj_root, 'images_crop')
+    output_dir = os.path.join(subj_root, 'images_crop_randn')
 
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
@@ -123,7 +123,7 @@ def shift_and_crop_subj(subj_root):
 
     data = rename_subset(data)
 
-    shifts = get_default_shifts(data.dropna().shape[0])
+    shifts = get_randn_shifts(data.dropna().shape[0])
     data = add_sensor_shifts(data, shifts)
 
     with open(os.path.join(img_paths.get_root(), 'head_mov.txt'), 'r') as file:
