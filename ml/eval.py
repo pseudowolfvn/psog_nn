@@ -10,7 +10,7 @@ from ml.finetune import train_and_save, load_and_finetune
 from ml.from_scratch import train_from_scratch
 from ml.grid_search import get_best_model_params
 from ml.load_data import split_test_from_all, default_split_if_none
-from ml.utils import get_module_prefix
+from ml.utils import get_module_prefix, default_config_if_none
 from utils.utils import get_arch
 
 
@@ -67,7 +67,8 @@ class StudyEvaluation:
 
     def _evaluate_approaches(
         self, train_subjs, test_subjs,
-        params, setup, config, REPS, redo
+        params, setup, config, REPS, redo,
+        data_source=None
     ):
         """Evalute spatial accuracies and times spent for training
             for 'fine-tune' and 'from scratch' approaches
@@ -112,7 +113,7 @@ class StudyEvaluation:
             for i in range(REPS):
                 _, acc, t = load_and_finetune(
                     self.root, train_subjs, subj,
-                    params, config
+                    params, config, data_source=data_source
                 )
                 ft[i] = acc
                 ft_time[i] = t
@@ -124,7 +125,8 @@ class StudyEvaluation:
 
             for i in range(REPS):
                 _, acc, t = train_from_scratch(
-                    self.root, subj, params, config
+                    self.root, subj,
+                    params, config, data_source=data_source
                 )
                 scr[i] = acc
                 scr_time[i] = t
@@ -152,7 +154,8 @@ class StudyEvaluation:
             else:
                 self.results[k] = v
 
-    def run(self, learning_config=None, reps=10, split_source=None):
+    def run(self, learning_config=None, reps=10,
+            split_source=None, data_source=None):
         """Main method to run the general study evaluation
             for the whole dataset.
 
@@ -186,6 +189,7 @@ class StudyEvaluation:
         # of the following array containes all IDs.
         # TODO: find the source of bug
         split_source = default_split_if_none(split_source)
+        learning_config = default_config_if_none(learning_config)
 
         subjs_split = split_source()
         self.results = {}
@@ -204,7 +208,8 @@ class StudyEvaluation:
 
                     data = self._evaluate_approaches(
                         train_subjs, test_subjs,
-                        params, setup, learning_config, reps, self.redo 
+                        params, setup, learning_config, reps, self.redo,
+                        data_source=data_source
                     )
                     self._accumulate_results(data)
 
