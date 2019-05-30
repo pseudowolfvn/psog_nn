@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# from torch.optim import Adam
+from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 from utils.metrics import calc_acc
@@ -47,6 +47,7 @@ class Model(nn.Module):
 
         KERNEL_SIZE = 3
 
+        self.conv_layers = []
         for c in range(L_conv):
             in_ch = 1 if c == 0 else D
             out_ch = D
@@ -56,32 +57,45 @@ class Model(nn.Module):
             )
             nn.init.xavier_uniform(conv.weight)
             self.add_module('conv' + str(c), conv)
+            self.conv_layers.append(conv)
 
         self.fc_in_dim = 15*D if L_conv > 0 else in_dim
         self.has_conv = L_conv > 0
 
+        self.fc_layers = []
         for c in range(L_fc):
             in_ch = self.fc_in_dim if c == 0 else N
             out_ch = N
             fc = nn.Linear(in_ch, out_ch)
             nn.init.xavier_uniform(fc.weight)
             self.add_module('fc' + str(c), fc)
+            self.fc_layers.append(fc)
 
         out_fc = nn.Linear(N, 2)
         nn.init.xavier_uniform(out_fc.weight)
         self.add_module('out', out_fc)
+        self.fc_layers.append(out_fc)
 
         self.to(self.device)
 
-    def forward(self, x):
-        flattened = False
-        for name, l in self.named_children():
-            if not flattened and self.has_conv and name.startswith('fc'):
-                x = x.view(-1, self.fc_in_dim)
-                flattened = True
-            x = F.relu(l(x)) if not name.startswith('out') else l(x)
+    # def forward(self, x):
+    #     flattened = False
+    #     for name, l in self.named_children():
+    #         if not flattened and self.has_conv and name.startswith('fc'):
+    #             x = x.view(-1, self.fc_in_dim)
+    #             flattened = True
+    #         x = F.relu(l(x)) if not name.startswith('out') else l(x)
 
-        return x
+    #     return x
+
+    def forward(self, x):
+        for conv in self.conv_layers:
+            x = F.relu(conv(x))
+        if len(self.conv_layers) > 0:
+            x = x.view(-1, self.fc_in_dim)
+        for fc in self.fc_layers[:-1]:
+            x = F.relu(fc(x))
+        return self.fc_layers[-1](x)
 
     def fit(self, X, y, X_val, y_val):
         """Train the model.
@@ -105,7 +119,10 @@ class Model(nn.Module):
         batch_size = self.learning_config['batch_size']
         patience = self.learning_config['patience']
 
-        opt = Nadam(self.parameters(), lr=0.001, betas=(0.9, 0.999), weight_decay=0.0001, eps=1e-08)
+        # This line directly replicates Keras codebase but led to the worse performance
+        # without meaningful accuracy improvement
+        # opt = Nadam(self.parameters(), lr=0.001, betas=(0.9, 0.999), weight_decay=0.0001, eps=1e-08)
+        opt = Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
         crit = nn.MSELoss()
 
         N = X.shape[0]
