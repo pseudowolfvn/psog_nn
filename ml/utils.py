@@ -1,7 +1,10 @@
 """ Machine-learning utility functions.
 """
+import datetime
 import os
 
+import numpy as np
+import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.externals import joblib
 
@@ -114,3 +117,26 @@ def normalize(X_train, X_test, arch, train_subjs=None):
     X_train = normalizer.transform(X_train)
     X_test = normalizer.transform(X_test)
     return X_train, X_test
+
+def report_results(data, report_name=None):
+    results = np.zeros((len(data['subjs']), 4))
+    for i, subj in enumerate(data['subjs']):
+        ft_mean = np.mean(data[subj]['ft']['data'])
+        ft_std = np.std(data[subj]['ft']['data'])
+        scr_mean = np.mean(data[subj]['scr']['data'])
+        scr_std = np.std(data[subj]['scr']['data'])
+        results[i] = [ft_mean, ft_std, scr_mean, scr_std]
+    
+    report = pd.DataFrame(
+        results,
+        columns=['Ft, mean', 'Ft, std', 'Scr, mean', 'Scr, std']
+    )
+
+    report_dir = 'tmp'
+    if not os.path.exists(report_dir):
+        os.mkdir(report_dir)
+
+    if report_name is None:
+        report_name = datetime.datetime.now().isoformat().replace(':', '-')
+
+    report.to_csv(os.path.join(report_dir, report_name + '.csv'), index=False)
