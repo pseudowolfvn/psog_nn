@@ -179,19 +179,16 @@ def get_shifts_outer_split_data(root, subj, arch, train_subjs=None, test_rad=np.
 
     train_ratio = 0.7
     train_size = int(round(len(train_ind) * train_ratio))
-    train_ind = train_ind[:train_size]
 
     if test_rad == 1.0:
-        test_ind = []
-        for i in range(X_train.shape[0]):
-            if i not in train_ind:
-                test_ind.append(i)
+        test_ind = train_ind[train_size:]
     else:
         test_ind = np.where([
             dist(x, y) > 1. and dist(x, y) <= test_rad
                 for x, y in X_train[:, -2:]
         ])[0]
 
+    train_ind = train_ind[:train_size]
 
     X_test = X_train[:, :-2][test_ind]
     y_test = y_train[test_ind]
