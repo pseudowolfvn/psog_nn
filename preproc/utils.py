@@ -26,6 +26,6 @@ def get_no_shifts(N):
     hor = ver = [0.] * 9
     return get_cyclic_shifts(hor, ver, N)
 
-def get_randn_shifts(N):
-    shifts = np.random.normal(size=(N, 2))
+def get_randn_shifts(N, r=2.):
+    shifts = np.random.normal(0., r/2., size=(N, 2))
     return shifts
