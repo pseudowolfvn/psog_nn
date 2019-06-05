@@ -177,24 +177,21 @@ def get_shifts_outer_split_data(root, subj, arch, train_subjs=None, test_rad=np.
 
     train_ind = np.where([dist(x, y) <= 1. for x, y in X_train[:, -2:]])[0]
 
-    train_ratio = 0.7
-    train_size = int(round(len(train_ind) * train_ratio))
-
-    if test_rad == 1.0:
-        test_ind = train_ind[train_size:]
-    else:
+    if test_rad != 1.0:
         test_ind = np.where([
             dist(x, y) > 1. and dist(x, y) <= test_rad
                 for x, y in X_train[:, -2:]
         ])[0]
 
-    train_ind = train_ind[:train_size]
-
-    X_test = X_train[:, :-2][test_ind]
-    y_test = y_train[test_ind]
+        X_test = X_train[:, :-2][test_ind]
+        y_test = y_train[test_ind]
 
     X_train = X_train[:, :-2][train_ind]
     y_train = y_train[train_ind]
+
+    if test_rad == 1.0:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_train, y_train, test_size=0.3, random_state=42)
 
     X_train, X_test = normalize(X_train, X_test, arch, train_subjs)
     X_train, X_val, y_train, y_val = train_test_split(
