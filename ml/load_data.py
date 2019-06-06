@@ -170,28 +170,33 @@ def get_shifts_split_data(root, subj, arch, train_subjs=None):
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 
-def get_shifts_outer_split_data(root, subj, arch, train_subjs=None, test_rad=np.inf):
+def get_shifts_outer_split_data(root, subj, arch,
+        test_rad_gt, test_rad_lt, train_rad=1.0, train_subjs=None):
     dist = lambda x, y: np.sqrt(x**2 + y**2)
 
-    X_train, y_train = get_data(root, subj, with_shifts=True)
+    X_data, y_data = get_data(root, subj, with_shifts=True)
 
-    train_ind = np.where([dist(x, y) <= 1. for x, y in X_train[:, -2:]])[0]
+    train_ind = np.where([
+        dist(x, y) <= train_rad 
+        for x, y in X_data[:, -2:]]
+    )[0]
 
-    if test_rad != 1.0:
+    X_train = X_data[:, :-2][train_ind]
+    y_train = y_data[train_ind]
+
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        X_train, y_train, test_size=0.3, random_state=42)
+
+    if test_rad_lt == train_rad:
+        X_test = X_temp
+        y_test = t_temp
+    else:
         test_ind = np.where([
-            dist(x, y) > 1. and dist(x, y) <= test_rad
-                for x, y in X_train[:, -2:]
+            dist(x, y) > test_rad_gt and dist(x, y) <= test_rad_lt
+                for x, y in X_data[:, -2:]
         ])[0]
-
-        X_test = X_train[:, :-2][test_ind]
-        y_test = y_train[test_ind]
-
-    X_train = X_train[:, :-2][train_ind]
-    y_train = y_train[train_ind]
-
-    if test_rad == 1.0:
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_train, y_train, test_size=0.3, random_state=42)
+        X_test = X_data[:, :-2][test_ind]
+        y_test = y_data[test_ind]
 
     X_train, X_test = normalize(X_train, X_test, arch, train_subjs)
     X_train, X_val, y_train, y_val = train_test_split(
@@ -203,11 +208,12 @@ def get_shifts_outer_split_data(root, subj, arch, train_subjs=None, test_rad=np.
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 
-def make_get_shifts_outer_split_data(rad):
+def make_get_shifts_outer_split_data(test_rad_gt, test_rad_lt, train_rad=1.0):
     def f(root, subj, arch, train_subjs=None):
         return get_shifts_outer_split_data(
             root, subj, arch,
-            train_subjs=train_subjs, test_rad=rad
+            test_rad_gt=test_rad_gt, test_rad_lt=test_rad_lt,
+            train_rad=train_rad, train_subjs=train_subjs
         )
     return f
 
