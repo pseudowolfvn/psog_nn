@@ -189,7 +189,7 @@ def get_shifts_outer_split_data(root, subj, arch,
 
     if test_rad_lt == train_rad:
         X_test = X_temp
-        y_test = t_temp
+        y_test = y_temp
     else:
         test_ind = np.where([
             dist(x, y) > test_rad_gt and dist(x, y) <= test_rad_lt
