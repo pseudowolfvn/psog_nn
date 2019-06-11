@@ -28,15 +28,13 @@ def build_model(params, in_dim=None, learning_config=None, impl='torch'):
     if len(params) == 2:
         params = (0, 0, *params)
 
-    print('DEBUG: ', impl)
-    print('DEBUG: ', impl == 'torch')
     if impl == 'torch':
         from ml.model_torch import Model
-        print('DEBUG: torch')
+        print('DEBUG: torch implementation')
         model = Model(*params, in_dim, learning_config)
     else:
         from ml.model_keras import Model
-        print('DEBUG: keras')
+        print('DEBUG: keras implementation')
         model = Model(*params, learning_config)
 
     return model

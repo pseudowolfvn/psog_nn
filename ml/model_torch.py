@@ -213,6 +213,11 @@ class Model(nn.Module):
 
         return train_acc, test_acc, val_acc
 
+    def _add_impl_prefix(model_path):
+        model_dir = str(Path(model_path).parent)
+        model_name = 'torch_' + str(Path(model_path).name)
+        return os.path.join(model_dir, model_name)
+
     def save_weights(self, model_path):
         """Save model's weights.
 
@@ -222,6 +227,8 @@ class Model(nn.Module):
         model_dir = str(Path(model_path).parent)
         if not os.path.exists(model_dir):
             os.mkdir(model_dir)
+
+        model_path = self._add_impl_prefix(model_path)
         torch.save(self.state_dict(), model_path)
 
     def load_weights(self, model_path):
@@ -230,6 +237,7 @@ class Model(nn.Module):
         Args:
             model_path: A string with full path for model to be loaded from.
         """
+        model_path = self._add_impl_prefix(model_path)
         self.load_state_dict(torch.load(model_path))
         self.eval()
 

@@ -112,6 +112,11 @@ class Model:
             val_acc = calc_acc(y_val, self.model.predict(X_val))
         return train_acc, test_acc, val_acc
 
+    def _add_impl_prefix(model_path):
+        model_dir = str(Path(model_path).parent)
+        model_name = 'keras_' + str(Path(model_path).name)
+        return os.path.join(model_dir, model_name)
+
     def save_weights(self, model_path):
         """Save model's weights.
 
@@ -121,6 +126,8 @@ class Model:
         model_dir = str(Path(model_path).parent)
         if not os.path.exists(model_dir):
             os.mkdir(model_dir)
+
+        model_path = self._add_impl_prefix(model_path)
         self.model.save(model_path)
 
     def load_weights(self, model_path):
@@ -129,6 +136,7 @@ class Model:
         Args:
             model_path: A string with full path for model to be loaded from.
         """
+        model_path = self._add_impl_prefix(model_path)
         self.model = load_model(model_path)
 
     def freeze_conv(self):

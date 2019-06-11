@@ -49,7 +49,7 @@ def get_model_path(subjs, params):
     return os.path.join(
         get_module_prefix(),
         'models',
-        'keras_' + str(params) + '_' + str(subjs) + '.h5'
+        str(params) + '_' + str(subjs) + '.h5'
     )
 
 def filter_outliers(data, verbose=False):
