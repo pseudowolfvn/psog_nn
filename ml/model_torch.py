@@ -121,8 +121,8 @@ class Model(nn.Module):
 
         # This line directly replicates Keras codebase but led to the worse performance
         # without meaningful accuracy improvement
-        # opt = Nadam(self.parameters(), lr=0.001, betas=(0.9, 0.999), weight_decay=0.0001, eps=1e-08)
-        opt = Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
+        opt = Nadam(self.parameters(), lr=0.001, betas=(0.9, 0.999), weight_decay=0.0001, eps=1e-08)
+        # opt = Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
         crit = nn.MSELoss()
 
         N = X.shape[0]
@@ -140,7 +140,8 @@ class Model(nn.Module):
         # TEMP CODE
         for epoch in range(epochs):
             epoch_ind = torch.randperm(N)
-            for i in range(N // batch_size):
+            extra_step = 0 if N % batch_size == 0 else 1
+            for i in range(N // batch_size + extra_step):
                 batch_ind = epoch_ind[i*batch_size: (i + 1)*batch_size]
                 batch_X, batch_y_gt = X[batch_ind, :], y[batch_ind, :]
                 batch_y_pred = self(batch_X)
