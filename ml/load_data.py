@@ -59,15 +59,20 @@ def get_data(root, subj_ids=None, with_shifts=False):
 
     X_data = []
     y_data = []
+    shapes = []
     sensor = PSOG()
     for dirname in os.listdir(root):
         if subj_ids is not None and dirname not in subj_ids:
             continue
         subj_root = os.path.join(root, dirname)
         X, y = get_subj_data(subj_root, sensor, with_shifts=with_shifts)
-
+        shapes.append(X.shape[0])
         X_data.extend(X)
         y_data.extend(y)
+    print(shapes)
+    print(np.mean(shapes))
+    print('-'*80)
+    exit()
 
     return np.array(X_data), np.array(y_data)
 
@@ -215,6 +220,30 @@ def make_get_shifts_outer_split_data(test_rad_gt, test_rad_lt, train_rad=1.0):
             test_rad_gt=test_rad_gt, test_rad_lt=test_rad_lt,
             train_rad=train_rad, train_subjs=train_subjs
         )
+    return f
+
+def get_ratio_data(root, subj, arch, train_subjs=None, ratio=1.0, seed=42):
+    X_train, y_train = get_data(root, subj)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_train, y_train, test_size=0.3, random_state=seed)
+    X_train, X_test = normalize(X_train, X_test, arch, train_subjs)
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train, y_train, test_size=0.143, random_state=seed)
+
+    train_size = int(round(ratio * X_train.shape[0]))
+    print('DEBUG: ', train_size, 'out of', X_train.shape[0])
+    X_train = X_train[:train_size, :]
+    y_train = y_train[:train_size, :]
+
+    if arch == 'cnn':
+        X_train, X_val, X_test = reshape_into_grid(X_train, X_val, X_test)
+
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+def make_get_ratio_data(ratio, seed=42):
+    def f(root, subj, arch, train_subjs=None):
+        return get_ratio_data(root, subj, arch,
+            train_subjs=train_subjs, ratio=ratio, seed=seed)
     return f
 
 def default_source_if_none(data_source):
