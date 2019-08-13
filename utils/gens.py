@@ -127,7 +127,7 @@ class CropImgSampleGenerator(ImgSampleGenerator):
             subj_root: A string with full path to directory
                 with subject's recording.
         """
-        imgs_dir = 'images_crop'
+        imgs_dir = 'images_crop_noshift'
         data_relpath = os.path.join(imgs_dir, Path(subj_root).name + '.csv')
         super().__init__(subj_root, imgs_dir, data_relpath)
 

@@ -167,7 +167,7 @@ def simulate_subj_psog(subj_root):
     for i, (img, _) in enumerate(img_samples):
         psog_outputs[i] = psog.simulate_output(img)
 
-    data_name = Path(subj_root).name + '_' + psog.arch + '.csv'
+    data_name = Path(subj_root).name + '_' + psog.arch + '_noshift.csv'
     img_samples.get_data().assign(
         **dict(
             zip(psog.get_names(), psog_outputs.T)
@@ -190,6 +190,10 @@ def simulate_psog(dataset_root, subj_ids=None):
     for dirname in os.listdir(dataset_root):
         if subj_ids is not None and dirname not in subj_ids:
             continue
+        if not dirname.startswith('Record'):
+            print('Skipping', dirname, '...')
+            continue
+
         subj_root = os.path.join(dataset_root, dirname)
         simulate_subj_psog(subj_root)
 

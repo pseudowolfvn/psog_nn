@@ -6,9 +6,10 @@ import sys
 
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LinearRegression
 from skimage.io import imread, imsave
 
-from preproc.utils import get_default_shifts, get_randn_shifts
+from preproc.utils import get_default_shifts, get_randn_shifts, get_no_shifts
 from utils.gens import ImgPathGenerator
 from utils.utils import repeat_up_to, calc_pad_size, do_sufficient_pad
 
@@ -39,7 +40,30 @@ def shift_mm_to_pix(sh):
     """
     STEP = 0.5
     PIX_TO_MM = 4
-    return int(round(sh / STEP * PIX_TO_MM))
+    return sh / STEP * PIX_TO_MM
+
+def get_valid_sample(data, i):
+    start_i = i
+    while i >= 0 and data.iloc[i].val == 4:
+        i -= 1
+    if i < 0:
+        i = start_i
+        while data.iloc[i].val == 4:
+            i += 1
+    return data.iloc[i]
+
+def build_head_mov_correction_func(data):
+    def get_regression_coefs(X, y):
+        X = X.reshape(-1, 1)
+        y = y.reshape(-1, 1)
+        reg = LinearRegression().fit(X, y)
+        return reg.coef_[0][0], reg.intercept_[0]
+    
+    A_x, _ = get_regression_coefs(data.pos_x.values, data.pc_x.values)
+    A_y, _ = get_regression_coefs(data.pos_y.values, data.pc_y.values)
+
+    return lambda pos_x, pos_y: (-A_x*pos_x, -A_y*pos_y)
+
 
 def get_shifted_crop(img, center, head_mov, sample):
     """Crop provided image to 320x240 close eye capture correcting for
@@ -63,7 +87,12 @@ def get_shifted_crop(img, center, head_mov, sample):
     y += shift_mm_to_pix(sample['sh_hor']) + head_mov[1]
 
     w, h = 320, 240
-    top_lefts = (x - h // 2, y - w // 2)
+    top_lefts = tuple(
+        map(
+            lambda z: int(round(z)),
+            (x - h / 2, y - w / 2)
+        )
+    )
 
     top_lefts, pad = calc_pad_size(img, top_lefts, (h, w))
     img = do_sufficient_pad(img, pad)
@@ -87,12 +116,15 @@ def rename_subset(data):
         index=str,
         columns={
             'Timestamp': 'time',
+            'ValidityLeft': 'val',
             'GazePointXLeft': 'pos_x',
             'GazePointYLeft': 'pos_y',
+            'PupilLeftX': 'pc_x',
+            'PupilLeftY': 'pc_y',
             'PupilArea': 'pupil_size'
         }
     )
-    data = data[['time', 'pos_x', 'pos_y', 'pupil_size']]
+    data = data[['time', 'val', 'pos_x', 'pos_y', 'pc_x', 'pc_y', 'pupil_size']]
 
     return data
 
@@ -108,40 +140,54 @@ def shift_and_crop_subj(subj_root):
 
     img_paths = ImgPathGenerator(subj_root)
 
-    output_dir = os.path.join(subj_root, 'images_crop_randn')
+    output_dir = os.path.join(subj_root, 'images_crop_noshift')
 
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
-    with open(os.path.join(img_paths.get_root(), "_CropPos.txt")) as f:
-        cp_x, cp_y = map(int, f.readline().split(' '))
+    # with open(os.path.join(img_paths.get_root(), "_CropPos.txt")) as f:
+    #     cp_x, cp_y = map(int, f.readline().split(' '))
+
+    data_name = 'FullSignal.csv'
+    for filename in os.listdir(subj_root):
+        if filename.startswith('DOT') and filename.endswith('.tsv'):
+            data_name = filename
 
     data = pd.read_csv(
-        os.path.join(subj_root, 'FullSignal.csv'),
+        os.path.join(subj_root, data_name),
         sep='\t'
     )
 
+    valid_data = data[data.ValidityLeft != 4]
+
     data = rename_subset(data)
 
-    shifts = get_randn_shifts(data.dropna().shape[0])
+    shifts = get_no_shifts(data.dropna().shape[0])
     data = add_sensor_shifts(data, shifts)
 
-    with open(os.path.join(img_paths.get_root(), 'head_mov.txt'), 'r') as file:
-        head_mov_data = [
-            tuple(map(int, line.split(' ')))
-            for line in file.readlines()
-        ]
+    # with open(os.path.join(img_paths.get_root(), 'head_mov.txt'), 'r') as file:
+    #     head_mov_data = [
+    #         tuple(map(int, line.split(' ')))
+    #         for line in file.readlines()
+    #     ]
+    head_mov_func = build_head_mov_correction_func(data)
 
     img_ind = 0
     for i, img_path in enumerate(img_paths):
         if i >= data.shape[0] or data.iloc[i].isna().any():
             continue
         img = imread(img_path)
+
+        sample = get_valid_sample(data, i)
+
+        cp_x, cp_y = sample.pc_x, sample.pc_y
+        head_mov_x, head_mov_y = head_mov_func(sample.pos_x, sample.pos_y)
+
         img = get_shifted_crop(
             img,
-            (cp_x, cp_y),
-            head_mov_data[i],
-            data.iloc[i]
+            (cp_y, cp_x),
+            (head_mov_y, head_mov_x),
+            sample
         )
 
         # TODO: at the next step the image-wise map between
@@ -172,6 +218,10 @@ def shift_and_crop(dataset_root, subj_ids=None):
     for dirname in os.listdir(dataset_root):
         if subj_ids is not None and dirname not in subj_ids:
             continue
+        if not dirname.startswith('Record'):
+            print('Skipping', dirname, '...')
+            continue
+
         subj_root = os.path.join(dataset_root, dirname)
         shift_and_crop_subj(subj_root)
 
