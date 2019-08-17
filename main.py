@@ -212,7 +212,7 @@ import numpy as np
 def get_acc_time(root, subj, params, config, impl):
     accs = []
     times = []
-    for i in range(5):
+    for i in range(3):
         config['seed'] = i
         _, acc, fit_time = train_from_scratch(
             root, subj, params, learning_config=config, impl=impl
@@ -222,15 +222,12 @@ def get_acc_time(root, subj, params, config, impl):
 
     return np.array(accs), np.array(times)
 
-def run_subj_comp(subj):
+def run_subj_comp(subj, impl='torch'):
     root = r'D:\DmytroKatrychuk\dev\research\dataset\psog_nn\dataset'
     params = (2,4,4,20)
     config = {'epochs':500, 'batch_size':1000, 'patience': 50}
 
-    torch_acc, torch_time = get_acc_time(root, subj, params, config, 'torch')
-    keras_acc, keras_time = get_acc_time(root, subj, params, config, 'keras')
-
-    return keras_acc, keras_time, torch_acc, torch_time
+    return get_acc_time(root, subj, params, config, impl)
 
 def calc_stats(acc, time):
     return {
@@ -261,13 +258,18 @@ def report_stats(stats):
 def run_keras_torch_comp():
     keras_stats = {}
     torch_stats = {}
+    chainer_stats = {}
 
-    for i in range(1, 24):
-        keras_acc, keras_time, torch_acc, torch_time = run_subj_comp(str(i))
+    for i in range(1, 2):
+        torch_acc, torch_time = run_subj_comp(str(i), 'torch')
+        keras_acc, keras_time = run_subj_comp(str(i), 'keras')
+        chainer_acc, chainer_time = run_subj_comp(str(i), 'chainer')
+
         keras_stats[i] = calc_stats(keras_acc, keras_time)
         torch_stats[i] = calc_stats(torch_acc, torch_time)
+        chainer_stats[i] = calc_stats(chainer_acc, chainer_time)
 
-    for i in range(1, 24):
+    for i in range(1, 2):
         print('Subject', i)
 
         print('KERAS')
@@ -276,6 +278,8 @@ def run_keras_torch_comp():
         print('TORCH')
         report_stats(torch_stats[i])
 
+        print('CHAINER')
+        report_stats(chainer_stats[i])
 
 if __name__ == '__main__':
     # run_cli()

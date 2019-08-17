@@ -30,11 +30,15 @@ def build_model(params, in_dim=None, learning_config=None, impl='torch'):
 
     if impl == 'torch':
         from ml.model_torch import Model
-        print('DEBUG: torch implementation')
+        print('DEBUG: Torch implementation')
         model = Model(*params, in_dim, learning_config)
-    else:
+    elif impl == 'keras':
         from ml.model_keras import Model
-        print('DEBUG: keras implementation')
+        print('DEBUG: Keras implementation')
         model = Model(*params, learning_config)
+    elif impl == 'chainer':
+        from ml.model_chainer import Model
+        print('DEBUG: Chainer implementation')
+        model = Model(*params, in_dim, learning_config)
 
     return model

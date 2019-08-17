@@ -4,24 +4,23 @@ import os
 from pathlib import Path
 import time
 
-# from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
-# from ignite.handlers import EarlyStopping
-# from ignite.metrics import Accuracy, Loss
+import chainer
+from chainer import serializers
+from chainer import Variable
+import chainer.backends as B
+import chainer.functions as F
+from chainer.initializers.uniform import GlorotUniform
+import chainer.links as L
+from chainer.optimizers import Adam
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.optim import Adam
-from torch.utils.data import DataLoader, Dataset, TensorDataset
-from tqdm import tqdm
-from utils.metrics import calc_acc
-from utils.utils import get_arch
 
-from ml.nadam_torch import Nadam
+from ml.load_data import get_specific_data
 from ml.utils import default_config_if_none
+from utils.metrics import calc_acc
 
-class Model(nn.Module):
-    """Class that provides that wraps a PyTorch-based neural network model
+
+class Model(chainer.Chain):
+    """Class that provides that wraps a Chainer-based neural network model
         and provides an interface for its evaluation.
     """
     def __init__(self, L_conv, D, L_fc, N, in_dim=None, learning_config=None):
@@ -39,11 +38,7 @@ class Model(nn.Module):
 
         self.learning_config = default_config_if_none(learning_config)
         seed = self.learning_config['seed']
-        torch.manual_seed(seed)
         np.random.seed(seed)
-
-        self.device = torch.device('cuda') if torch.cuda.is_available() \
-            else torch.device('cpu')
 
         KERNEL_SIZE = 3
 
@@ -51,12 +46,12 @@ class Model(nn.Module):
         for c in range(L_conv):
             in_ch = 1 if c == 0 else D
             out_ch = D
-            conv = nn.Conv2d(
+            conv = L.Convolution2D(
                 in_ch, out_ch,
-                KERNEL_SIZE, padding=(KERNEL_SIZE - 1)//2
+                KERNEL_SIZE, pad=(KERNEL_SIZE - 1)//2,
+                initialW=GlorotUniform()
             )
-            nn.init.xavier_uniform(conv.weight)
-            self.add_module('conv' + str(c), conv)
+            self.add_link('conv' + str(c), conv)
             self.conv_layers.append(conv)
 
         self.fc_in_dim = 15*D if L_conv > 0 else in_dim
@@ -66,33 +61,36 @@ class Model(nn.Module):
         for c in range(L_fc):
             in_ch = self.fc_in_dim if c == 0 else N
             out_ch = N
-            fc = nn.Linear(in_ch, out_ch)
-            nn.init.xavier_uniform(fc.weight)
-            self.add_module('fc' + str(c), fc)
+            fc = L.Linear(in_ch, out_ch, initialW=GlorotUniform())
+            self.add_link('fc' + str(c), fc)
             self.fc_layers.append(fc)
 
-        out_fc = nn.Linear(N, 2)
-        nn.init.xavier_uniform(out_fc.weight)
-        self.add_module('out', out_fc)
+        out_fc = L.Linear(N, 2, initialW=GlorotUniform())
+        self.add_link('out', out_fc)
         self.fc_layers.append(out_fc)
 
-        self.to(self.device)
+        try:
+            import cupy as cp
+            B.cuda.check_cuda_available()
+            chainer.global_config.cudnn_deterministic = True
+            self.dev = '@cupy:0'
+            cp.random.seed(seed)
+            self.random_permutation = np.random.permutation
+        except:
+            print("Chainer: CUDA isn't available, using CPU...")
+            self.dev = '@numpy'
+            self.random_permutation = np.random.permutation
+        
+        self.to_device(self.dev)
 
-    # def forward(self, x):
-    #     flattened = False
-    #     for name, l in self.named_children():
-    #         if not flattened and self.has_conv and name.startswith('fc'):
-    #             x = x.view(-1, self.fc_in_dim)
-    #             flattened = True
-    #         x = F.relu(l(x)) if not name.startswith('out') else l(x)
-
-    #     return x
+        self.opt = Adam(alpha=0.001, beta1=0.9, beta2=0.999, eps=1e-08)
+        self.opt.setup(self)
 
     def forward(self, x):
         for conv in self.conv_layers:
             x = F.relu(conv(x))
         if len(self.conv_layers) > 0:
-            x = x.view(-1, self.fc_in_dim)
+            x = F.reshape(x, (-1, self.fc_in_dim))
         for fc in self.fc_layers[:-1]:
             x = F.relu(fc(x))
         return self.fc_layers[-1](x)
@@ -119,12 +117,6 @@ class Model(nn.Module):
         batch_size = self.learning_config['batch_size']
         patience = self.learning_config['patience']
 
-        # This line directly replicates Keras codebase but led to the worse performance
-        # without meaningful accuracy improvement
-        # opt = Nadam(self.parameters(), lr=0.001, betas=(0.9, 0.999), weight_decay=0.0001, eps=1e-08)
-        opt = Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
-        crit = nn.MSELoss()
-
         N = X.shape[0]
         X = self._tensor_from_numpy(X)
         y = self._tensor_from_numpy(y)
@@ -132,58 +124,47 @@ class Model(nn.Module):
         X_val = self._tensor_from_numpy(X_val)
         y_val = self._tensor_from_numpy(y_val)
 
+        crit = F.mean_squared_error
         fit_time = time.time()
 
-        counter = 0
-        best_loss = None
-
-        # TEMP CODE
         for epoch in range(epochs):
-            epoch_ind = torch.randperm(N, device=self.device)
+            epoch_ind = self.random_permutation(N)
             extra_step = 0 if N % batch_size == 0 else 1
             for i in range(N // batch_size + extra_step):
                 batch_ind = epoch_ind[i*batch_size: (i + 1)*batch_size]
                 batch_X, batch_y_gt = X[batch_ind, :], y[batch_ind, :]
                 batch_y_pred = self(batch_X)
 
-                opt.zero_grad()
                 loss = crit(batch_y_pred, batch_y_gt)
 
+                self.cleargrads()
                 loss.backward()
-                opt.step()
+                self.opt.update()
 
-            # train_loss = crit(self(X), y).item()
-            # val_loss = crit(self(X_val), y_val).item()
+            # train_loss = crit(self(X), y).array.item()
+            # val_loss = crit(self(X_val), y_val).array.item()
 
             # epoch_str = 'Epoch: {:>5};'.format(epoch)
             # loss_str = 'Train loss: {:>7.3f}; Val loss: {:>7.3f}'.format(
             #     train_loss, val_loss
             # )
             # print(epoch_str, loss_str)
-
-            # # Early stopping
-            # if best_loss is None:
-            #     best_loss = val_loss
-            # elif val_loss >= best_loss:
-            #     counter += 1
-            #     if counter >= patience:
-            #         print('Early stopping triggered')
-            #         break
-            # else:
-            #     best_loss = val_loss
-            #     counter = 0
-
+    
         return time.time() - fit_time
 
-    def _tensor_from_numpy(self, X):
-        return torch.tensor(X.astype(np.float32), device=self.device)
+    def _tensor_from_numpy(self, x):
+        var = Variable(x.astype(np.float32), requires_grad=False)
+        var.to_device(self.dev)
+        return var
 
-    def _numpy_from_tensor(self, X):
-        return X.detach().cpu().numpy()
+    def _numpy_from_tensor(self, x):
+        x.to_device(chainer.get_device('@numpy'))
+        return x.array
 
     def _predict(self, X, y):
         X = self._tensor_from_numpy(X)
         y_pred = self(X)
+        # print('Loss: ', F.mean_squared_error(y_pred, self._tensor_from_numpy(y)))
         acc = calc_acc(y, self._numpy_from_tensor(y_pred))
         return acc
 
@@ -216,7 +197,7 @@ class Model(nn.Module):
 
     def _add_impl_prefix(self, model_path):
         model_dir = str(Path(model_path).parent)
-        model_name = 'torch_' + str(Path(model_path).name)
+        model_name = 'chainer_' + str(Path(model_path).name)
         return os.path.join(model_dir, model_name)
 
     def save_weights(self, model_path):
@@ -230,7 +211,7 @@ class Model(nn.Module):
             os.mkdir(model_dir)
 
         model_path = self._add_impl_prefix(model_path)
-        torch.save(self.state_dict(), model_path)
+        serializers.save_hdf5(model_path, self)
 
     def load_weights(self, model_path):
         """Load model's weights.
@@ -239,12 +220,10 @@ class Model(nn.Module):
             model_path: A string with full path for model to be loaded from.
         """
         model_path = self._add_impl_prefix(model_path)
-        self.load_state_dict(torch.load(model_path))
-        self.eval()
+        serializers.load_hdf5(model_path, self)
 
     def freeze_conv(self):
         """Freeze weights for convolutional layers of the self.
         """
-        for name, layer in self.named_children():
-            if name.startswith('conv'):
-                layer.requires_grad = False
+        for conv in self.conv_layers:
+            conv.W.requires_grad = False
