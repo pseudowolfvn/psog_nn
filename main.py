@@ -7,13 +7,14 @@ from preproc.shift_crop import shift_and_crop
 from preproc.restore_missed import restore_missed_samples
 from preproc.head_mov_tracker import track_markers
 from preproc.psog import simulate_psog
+from ml.calib_analysis import evaluate_calib
+from ml.frameworks_comp import compare_frameworks
 from ml.general_analysis import evaluate_study
 from ml.grid_search import grid_search
 from ml.time_analysis import evaluate_time
-from ml.calib_analysis import evaluate_calib
-# from plots.boxplots_per_subject import plot_boxplots
-# from plots.error_bars import plot_error_bars
-# from plots.samples_distrib import draw_samples
+#from plots.boxplots_per_subject import plot_boxplots
+#from plots.error_bars import plot_error_bars
+#from plots.samples_distrib import draw_samples
 from utils.utils import none_if_empty, list_if_not
 
 
@@ -109,6 +110,11 @@ def build_subparsers():
             Run on the whole dataset, if no subjects specified'''
     )
 
+    add_subjs_argument(
+        ml, '--subjs',
+        '''restrict the corresponding analysis from the whole dataset
+        to the specified list of subjects'''
+    )
     ml.add_argument(
         '--grid_search', default=False, action='store_true',
         help='''run the grid-search to find the best architecture parameters.
@@ -131,6 +137,24 @@ def build_subparsers():
         help='''basic analysis of using calibration-like distribution
             of training set for 'fine-tune' approach for CNN architecture
             of both setups for subjects "6" and "8"'''
+    )
+    ml.add_argument(
+        '--compare', default=False, action='store_true',
+        help='''compare testing performance and training time of
+        frameworks from available implementations'''
+    )
+    frameworks = ['torch', 'chainer', 'keras']
+    ml.add_argument(
+        '--frameworks', default=frameworks, nargs='*', choices=frameworks,
+        help='''restrict frameworks comparison to the specified list.
+        If not specified, compare all'''
+    )
+    batch_size_default = 2000
+    ml.add_argument(
+        '--batch_size', default=batch_size_default, nargs='*', type=int,
+        help='''run the corresponding analysis for every batch size
+        from the specified list. If not specified, run once with
+        the default batch size of ''' + str(batch_size_default)
     )
     add_archs_argument(ml)
     add_setups_argument(ml)
@@ -174,6 +198,8 @@ def run_cli():
         args.arch = list_if_not(args.arch)
     if 'setup' in args:
         args.setup = list_if_not(args.setup)
+    if 'batch_size' in args:
+        args.batch_size = list_if_not(args.batch_size)
 
     if args.cmd == 'preproc':
         if args.missed is not None:
@@ -189,6 +215,7 @@ def run_cli():
             subj_ids = none_if_empty(args.psog)
             simulate_psog(dataset_root, subj_ids)
     elif args.cmd == 'ml':
+        subj_ids = none_if_empty(args.subjs)
         if args.grid_search:
             grid_search(dataset_root, args.arch, args.setup, redo=False)
         if args.evaluate:
@@ -197,6 +224,12 @@ def run_cli():
             evaluate_time(dataset_root, ['cnn'], ['lp'], redo=False)
         if args.calib_like_train:
             evaluate_calib(dataset_root, ['6', '8'])
+        print('COMPARING', args.frameworks)
+        if args.compare:
+            compare_frameworks(
+                dataset_root, args.frameworks,
+                args.batch_size, subj_ids, REPS=1
+            )
     elif args.cmd == 'plot':
         if args.boxplots:
             plot_boxplots(results_root, args.arch, args.setup)
@@ -206,81 +239,5 @@ def run_cli():
             subj_ids = none_if_empty(args.samples_distrib)
             draw_samples(dataset_root, subj_ids)
 
-from ml.from_scratch import train_from_scratch
-import numpy as np
-
-def get_acc_time(root, subj, params, config, impl):
-    accs = []
-    times = []
-    for i in range(3):
-        config['seed'] = i
-        _, acc, fit_time = train_from_scratch(
-            root, subj, params, learning_config=config, impl=impl
-        )
-        accs.append(acc)
-        times.append(fit_time)
-
-    return np.array(accs), np.array(times)
-
-def run_subj_comp(subj, impl='torch'):
-    root = r'D:\DmytroKatrychuk\dev\research\dataset\psog_nn\dataset'
-    params = (2,4,4,20)
-    config = {'epochs':500, 'batch_size':1000, 'patience': 50}
-
-    return get_acc_time(root, subj, params, config, impl)
-
-def calc_stats(acc, time):
-    return {
-        'acc': {
-            'mean': np.mean(acc),
-            'std': np.std(acc)
-        },
-        'time': {
-            'mean': np.mean(time),
-            'std': np.std(time)
-        }
-    }
-
-def report_stats(stats):
-    print(
-        'Accuracy, mean: {:.2f}, std: {:.2f}'.format(
-            stats['acc']['mean'],
-            stats['acc']['std']
-        )
-    )
-    print(
-        'Time, mean: {:.2f}, std: {:.2f}'.format(
-            stats['time']['mean'],
-            stats['time']['std']
-        )
-    )
-
-def run_keras_torch_comp():
-    keras_stats = {}
-    torch_stats = {}
-    chainer_stats = {}
-
-    for i in range(1, 2):
-        torch_acc, torch_time = run_subj_comp(str(i), 'torch')
-        keras_acc, keras_time = run_subj_comp(str(i), 'keras')
-        chainer_acc, chainer_time = run_subj_comp(str(i), 'chainer')
-
-        keras_stats[i] = calc_stats(keras_acc, keras_time)
-        torch_stats[i] = calc_stats(torch_acc, torch_time)
-        chainer_stats[i] = calc_stats(chainer_acc, chainer_time)
-
-    for i in range(1, 2):
-        print('Subject', i)
-
-        print('KERAS')
-        report_stats(keras_stats[i])
-        
-        print('TORCH')
-        report_stats(torch_stats[i])
-
-        print('CHAINER')
-        report_stats(chainer_stats[i])
-
 if __name__ == '__main__':
-    # run_cli()
-    run_keras_torch_comp()
+    run_cli()
