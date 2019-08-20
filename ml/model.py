@@ -34,8 +34,12 @@ def build_model(params, in_dim=None, learning_config=None, impl='torch'):
         model = Model(*params, in_dim, learning_config)
     elif impl == 'keras':
         from ml.model_keras import Model
+        import tensorflow as tf
         print('DEBUG: Keras implementation')
-        model = Model(*params, learning_config)
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        with tf.Session(config=config).as_default():
+            model = Model(*params, learning_config)
     elif impl == 'chainer':
         from ml.model_chainer import Model
         print('DEBUG: Chainer implementation')
