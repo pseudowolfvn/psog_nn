@@ -76,10 +76,11 @@ class Model:
         )
 
         # Keras doesn't save optimizer together with the model
-        nadam_opt = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
-        self.model.compile(loss='mean_squared_error', optimizer=nadam_opt)
+        adam_opt = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+        self.model.compile(loss='mean_squared_error', optimizer=adam_opt)
 
         fit_time = time.time()
+
         self.model.fit(
             X, y, nb_epoch=epochs, batch_size=batch_size,
             validation_data=(X_val, y_val), verbose=1,
@@ -112,7 +113,7 @@ class Model:
             val_acc = calc_acc(y_val, self.model.predict(X_val))
         return train_acc, test_acc, val_acc
 
-    def _add_impl_prefix(model_path):
+    def _add_impl_prefix(self, model_path):
         model_dir = str(Path(model_path).parent)
         model_name = 'keras_' + str(Path(model_path).name)
         return os.path.join(model_dir, model_name)
