@@ -85,6 +85,7 @@ class Model(chainer.Chain):
 
         self.opt = Adam(alpha=0.001, beta1=0.9, beta2=0.999, eps=1e-08)
         self.opt.setup(self)
+        self.opt.add_hook(chainer.optimizer_hooks.WeightDecay(0.0001))
 
     def forward(self, x):
         for conv in self.conv_layers:

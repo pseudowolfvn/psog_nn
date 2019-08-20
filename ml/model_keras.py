@@ -8,7 +8,7 @@ from keras.callbacks import EarlyStopping
 from keras.layers.convolutional import Conv2D
 from keras.layers.core import Dense, Flatten
 from keras.models import Sequential, load_model
-from keras.optimizers import Nadam
+from keras.optimizers import Adam
 from keras.regularizers import l2
 
 from ml.utils import default_config_if_none
@@ -76,7 +76,7 @@ class Model:
         )
 
         # Keras doesn't save optimizer together with the model
-        nadam_opt = Nadam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+        nadam_opt = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
         self.model.compile(loss='mean_squared_error', optimizer=nadam_opt)
 
         fit_time = time.time()

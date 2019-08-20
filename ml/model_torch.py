@@ -122,7 +122,7 @@ class Model(nn.Module):
         # This line directly replicates Keras codebase but led to the worse performance
         # without meaningful accuracy improvement
         # opt = Nadam(self.parameters(), lr=0.001, betas=(0.9, 0.999), weight_decay=0.0001, eps=1e-08)
-        opt = Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08)
+        opt = Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999), weight_decay=0.0001, eps=1e-08)
         crit = nn.MSELoss()
 
         N = X.shape[0]
