@@ -90,7 +90,7 @@ class Model(nn.Module):
 
     def forward(self, x):
         for conv in self.conv_layers:
-            x = F.relu(conv(x))
+            x = conv(x)
         if len(self.conv_layers) > 0:
             x = x.view(-1, self.fc_in_dim)
         for fc in self.fc_layers[:-1]:

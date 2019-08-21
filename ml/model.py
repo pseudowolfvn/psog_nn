@@ -1,6 +1,5 @@
 """ Models implementation.
 """
-from keras import backend as K
 
 
 # TODO: rewrite to factory
@@ -23,8 +22,6 @@ def build_model(params, in_dim=None, learning_config=None, impl='torch'):
         An instance of Model class that represents
             a model with corresponding parameters.
     """
-    K.clear_session()
-
     if len(params) == 2:
         params = (0, 0, *params)
 
@@ -33,13 +30,21 @@ def build_model(params, in_dim=None, learning_config=None, impl='torch'):
         print('DEBUG: Torch implementation')
         model = Model(*params, in_dim, learning_config)
     elif impl == 'keras':
-        from ml.model_keras import Model
+        from keras import backend as K
         import tensorflow as tf
+
+        from ml.model_keras import Model
+        
         print('DEBUG: Keras implementation')
+
+        K.clear_session()
+        K.set_image_data_format('channels_first')
+
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         with tf.Session(config=config).as_default():
             model = Model(*params, learning_config)
+
     elif impl == 'chainer':
         from ml.model_chainer import Model
         print('DEBUG: Chainer implementation')
