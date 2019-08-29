@@ -9,80 +9,32 @@ import cv2
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from ml.load_data import get_subj_data
+from ml.load_data import get_subj_data, get_stimuli_pos, get_calib_like_data
 from ml.utils import normalize
 from plots.utils import get_module_prefix
 from utils.utils import deg_to_pix
 
 
 # TODO: rewrite with use of ml.load_data.get_calib_like_data()
-def draw_subj_samples(subj_root):
+def draw_subj_samples(root, subj):
     """Draw stimuli and eye movements positions in pixels with highlighting
         points for calibration-like distribution training set
         simulation for provided subject.
 
     Args:
-        subj_root: A string with full path to directory
-            with subject's data stored in .csv file.
+        root: A string with path to dataset.
+        subj: A string with specific subject id.
     """
+    subj_root = os.path.join(root, subj)
     print('Drawing samples distribution for subj:', subj_root)
-    subj = Path(subj_root).name
-
-    data_path = 'Stimulus.xml'
-
-    tree = ET.parse(os.path.join(subj_root, data_path))
-    root = tree.getroot()
-
-    stimuli_pos = []
-    for position in root.iter('Position'):
-        x = int(position.find('X').text)
-        y = int(position.find('Y').text)
-        stimuli_pos.append((x, y))
-
-    calib_pos = sorted(list(set(stimuli_pos)))
-    calib_pos = [
-        calib_pos[0],
-        calib_pos[2],
-        calib_pos[4],
-        calib_pos[8],
-        calib_pos[10],
-        calib_pos[12],
-        calib_pos[16],
-        calib_pos[18],
-        calib_pos[20]
-    ]
+    
+    stimuli_pos = get_stimuli_pos(root, subj)
 
     stimuli_grid = sorted(list(set(stimuli_pos)))
     stimuli_pos = np.array(stimuli_pos)
 
-    X_train, y_train = get_subj_data(subj_root)
-
-    train_ind = []
-    test_ind = []
-    for ind, pos in enumerate(y_train):
-        posx, posy = deg_to_pix(pos)
-        calib_point = False
-        for calib in calib_pos:
-            x, y = calib
-            dist = np.hypot(posx - x, posy - y)
-            if dist < 35.:
-                calib_point = True
-                break
-        if calib_point:
-            train_ind.extend([ind])
-        else:
-            test_ind.extend([ind])
-
-    X_test = X_train[test_ind]
-    y_test = y_train[test_ind]
-
-    X_train = X_train[train_ind]
-    y_train = y_train[train_ind]
-
-    X_train, X_test = normalize(X_train, X_test, 'cnn')
-
-    X_test, _, y_test, _ = train_test_split(
-        X_test, y_test, test_size=0.2, random_state=42)
+    X_train, X_val, X_test, y_train, y_val, y_test = \
+        get_calib_like_data(root, subj, 'cnn')
 
     h, w = 1024, 1280
     img = np.zeros((h, w, 3), np.uint8)
@@ -137,8 +89,7 @@ def draw_samples(root, subj_ids=None):
     for dirname in os.listdir(root):
         if subj_ids is not None and dirname not in subj_ids:
             continue
-        subj_root = os.path.join(root, dirname)
-        draw_subj_samples(subj_root)
+        draw_subj_samples(root, dirname)
 
 if __name__ == "__main__":
-    draw_samples(sys.argv[1])
+    draw_samples(sys.argv[1], subj_ids=['1'])
