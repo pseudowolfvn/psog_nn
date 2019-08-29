@@ -24,6 +24,28 @@ def deg_to_pix(deg):
     return conv(posx, w_pix, w_mm, dist_mm), \
         conv(-posy, h_pix, h_mm, dist_mm)
 
+def pix_to_deg(pix):
+    """Convert eye gaze in pixels on the screen to degrees of visual angle.
+
+    Args:
+        deg: A tuple with horizontal, vertical component
+            of the eye gaze in pixels.
+
+    Returns:
+        A tuple with converted eye gaze in degrees of visual angle.
+    """
+    x, y = pix
+    dist_mm = 500.
+    w_mm = 374.
+    h_mm = 300.
+    w_pix = 1280
+    h_pix = 1024
+    conv = lambda data, pix, mm, dist: \
+        np.arctan((data - pix/2.) * mm / pix / dist) / np.pi * 180.
+    
+    return conv(x, w_pix, w_mm, dist_mm), \
+        -conv(y, h_pix, h_mm, dist_mm)
+
 def get_arch(params):
     """Get neural network architecture id from its parameters.
 
