@@ -69,10 +69,6 @@ def get_data(root, subj_ids=None, with_shifts=False):
         shapes.append(X.shape[0])
         X_data.extend(X)
         y_data.extend(y)
-    print(shapes)
-    print(np.mean(shapes))
-    print('-'*80)
-    exit()
 
     return np.array(X_data), np.array(y_data)
 
