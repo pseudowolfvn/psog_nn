@@ -36,7 +36,7 @@ def get_module_prefix():
     """
     return 'ml'
 
-def get_model_path(subjs, params):
+def get_model_path(subjs, params, dataset_id=None):
     """Get corresponding model path realtive to the project's root.
 
     Args:
@@ -47,9 +47,13 @@ def get_model_path(subjs, params):
     Returns:
         A string with model path.
     """
+    model_dir = os.path.join(get_module_prefix(), 'models')
+    if dataset_id:
+        model_dir = os.path.join(model_dir, dataset_id)
+        if not os.path.exists(model_dir):
+            os.mkdir(model_dir)
     return os.path.join(
-        get_module_prefix(),
-        'models',
+        model_dir,
         'keras_' + str(params) + '_' + str(subjs) + '.h5'
     )
 
