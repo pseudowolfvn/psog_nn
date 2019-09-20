@@ -9,7 +9,8 @@ from ml.utils import get_model_path, default_config_if_none
 from utils.utils import get_arch
 
 
-def train_and_save(root, train_subjs, test_subjs, params, load=False):
+def train_and_save(root, train_subjs, test_subjs, params, load=False,
+        learning_config=None, data_source=None):
     """Pre-train and save the neural network model on provided set of subjects.
 
     Args:
@@ -20,7 +21,15 @@ def train_and_save(root, train_subjs, test_subjs, params, load=False):
             the format described in ml.model.build_model().
         load: A boolean that shows if network should be trained again
             if files with weights already exist.
+        learning_config: A dict with parameters used for training following
+            the format described in ml.utils.default_config_if_none().
+        data_source: A function object that is used to load data.
+            ml.load_data.get_specific_data and ml.load_data.get_calib_like_data
+            are supported.
     """
+    learning_config = default_config_if_none(learning_config)
+    data_source = default_source_if_none(data_source)
+
     model_path = get_model_path(train_subjs, params)
     model = build_model(params)
 
@@ -29,7 +38,7 @@ def train_and_save(root, train_subjs, test_subjs, params, load=False):
         return
 
     X_train, X_val, X_test, y_train, y_val, y_test = \
-        get_general_data(root, train_subjs, test_subjs, get_arch(params))
+        data_source(root, train_subjs, test_subjs, get_arch(params))
 
     model.train(X_train, y_train, X_val, y_val, batch_size=2000)
     model.save_weights(model_path)
