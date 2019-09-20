@@ -36,6 +36,13 @@ def get_module_prefix():
     """
     return 'ml'
 
+def subjs_list_to_str(subjs):
+    subjs_str = ''
+    N = len(subjs)
+    for i in range(N):
+        subjs_str += '_' + subjs[i]
+    return subjs_str
+
 def get_model_path(subjs, params, dataset_id=None):
     """Get corresponding model path realtive to the project's root.
 
@@ -54,7 +61,13 @@ def get_model_path(subjs, params, dataset_id=None):
             os.mkdir(model_dir)
     return os.path.join(
         model_dir,
-        'keras_' + str(params) + '_' + str(subjs) + '.h5'
+        'keras_' + str(params) + subjs_list_to_str(subjs) + '.h5'
+    )
+
+def get_normalizer_path(arch, train_subjs):
+    return os.path.join(
+        get_module_prefix(), 'pca',
+        arch + subjs_list_to_str(train_subjs) + '.pkl'
     )
 
 def filter_outliers(data, verbose=False):
@@ -98,10 +111,7 @@ def normalize(X_train, X_test, arch, train_subjs=None):
         norm_dir = os.path.join(get_module_prefix(), 'pca')
         if not os.path.exists(norm_dir):
             os.mkdir(norm_dir)
-        norm_path = os.path.join(
-            norm_dir,
-            arch + '_normalizer_' + str(train_subjs) + '.pkl'
-        )
+        norm_path = get_normalizer_path(arch, train_subjs)
 
     # we only want to do data whitening for CNN architecture
     pca_params = {
