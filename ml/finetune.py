@@ -40,7 +40,10 @@ def train_and_save(root, train_subjs, test_subjs, params, load=False,
     X_train, X_val, X_test, y_train, y_val, y_test = \
         data_source(root, train_subjs, test_subjs, get_arch(params))
 
-    model.train(X_train, y_train, X_val, y_val, batch_size=2000)
+    model.train(
+        X_train, y_train, X_val, y_val,
+        **learning_config
+    )
     model.save_weights(model_path)
     print('Model', model_path, ' saved')
 
