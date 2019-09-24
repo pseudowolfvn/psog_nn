@@ -42,8 +42,11 @@ class Model(nn.Module):
         torch.manual_seed(seed)
         np.random.seed(seed)
 
-        self.device = torch.device('cuda') if torch.cuda.is_available() \
-            else torch.device('cpu')
+        if torch.cuda.is_available():
+            self.device = torch.device('cuda')
+            torch.backends.cudnn.deterministic = True
+        else:
+            self.device = torch.device('cpu')
 
         KERNEL_SIZE = 3
 
