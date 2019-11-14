@@ -4,9 +4,9 @@
 This repository contains code for ETRA 2019 submission: "Power-efficient and shift-robust eye-tracking sensor for portable VR headsets".
 
 ## Dataset
-The full dataset (9.15 Gb) can be downloaded from corresponding TxState Digital Library page. 
+The full dataset (9.15 Gb) can be downloaded from [here](https://digital.library.txstate.edu/bitstream/handle/10877/7955/UnprocessedDataset.zip?sequence=2&isAllowed=y). 
 
-The 'slim' version of the dataset (59 Mb) doesn't provide the set of images for each subject but include the result of the whole  preprocessing step instead. If you are interested only in machine-learning or plotting modules, you can download it also from project's TxState Digital Library page. 
+The 'slim' version of the dataset (59 Mb) doesn't provide the set of images for each subject but includes the result of the whole  preprocessing step instead. If you are interested only in machine-learning or plotting modules, you can download it [here](https://digital.library.txstate.edu/bitstream/handle/10877/7955/SlimDataset.zip?sequence=1&isAllowed=y).
 
 It's recommended to extract the dataset into '.\dataset' directory.
 
