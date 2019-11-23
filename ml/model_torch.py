@@ -121,11 +121,12 @@ class Model(nn.Module):
         epochs = self.learning_config['epochs']
         batch_size = self.learning_config['batch_size']
         patience = self.learning_config['patience']
+        learning_rate = self.learning_config['lr'] if 'lr' in self.learning_config else 0.001
 
         # This line directly replicates Keras codebase but led to the worse performance
         # without meaningful accuracy improvement
         # opt = Nadam(self.parameters(), lr=0.001, betas=(0.9, 0.999), weight_decay=0.0001, eps=1e-08)
-        opt = Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999), weight_decay=0.0001, eps=1e-08)
+        opt = Adam(self.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=0.0001, eps=1e-08)
         crit = nn.MSELoss()
 
         N = X.shape[0]
@@ -139,6 +140,7 @@ class Model(nn.Module):
 
         counter = 0
         best_loss = None
+        loss_history = []
 
         # TEMP CODE
         for epoch in range(epochs):
@@ -155,28 +157,35 @@ class Model(nn.Module):
                 loss.backward()
                 opt.step()
 
-            # train_loss = crit(self(X), y).item()
-            # val_loss = crit(self(X_val), y_val).item()
+            train_loss = crit(self(X), y).item()
+            val_loss = crit(self(X_val), y_val).item()
+            loss_history.append([train_loss, val_loss])
 
-            # epoch_str = 'Epoch: {:>5};'.format(epoch)
-            # loss_str = 'Train loss: {:>7.3f}; Val loss: {:>7.3f}'.format(
-            #     train_loss, val_loss
-            # )
-            # print(epoch_str, loss_str)
+            epoch_str = 'Epoch: {:>5};'.format(epoch)
+            loss_str = 'Train loss: {:>7.3f}; Val loss: {:>7.3f}'.format(
+                train_loss, val_loss
+            )
+            print(epoch_str, loss_str)
 
-            # # Early stopping
-            # if best_loss is None:
-            #     best_loss = val_loss
+            # Early stopping
+            if best_loss is None:
+                best_loss = val_loss
             # elif val_loss >= best_loss:
-            #     counter += 1
-            #     if counter >= patience:
-            #         print('Early stopping triggered')
-            #         break
-            # else:
-            #     best_loss = val_loss
-            #     counter = 0
+            elif (best_loss - val_loss) / best_loss < 0.01:
+                counter += 1
+                if counter >= patience:
+                    print('Early stopping triggered on epoch:', epoch)
+                    print(
+                        'Train loss: {:.2f}, val loss: {:.2f}, best val loss: {:.2f}'.format(
+                            train_loss, val_loss, best_loss
+                        )
+                    )
+                    break
+            else:
+                best_loss = val_loss
+                counter = 0
 
-        return time.time() - fit_time
+        return time.time() - fit_time, loss_history
 
     def _tensor_from_numpy(self, X):
         return torch.tensor(X.astype(np.float32), device=self.device)
@@ -187,7 +196,7 @@ class Model(nn.Module):
     def _predict(self, X, y):
         X = self._tensor_from_numpy(X)
         y_pred = self(X)
-        acc = calc_acc(y, self._numpy_from_tensor(y_pred))
+        acc = calc_acc(self._numpy_from_tensor(y_pred), y)
         return acc
 
     def report_acc(self, X_train, y_train,
@@ -232,7 +241,7 @@ class Model(nn.Module):
         if not os.path.exists(model_dir):
             os.mkdir(model_dir)
 
-        model_path = self._add_impl_prefix(model_path)
+        # model_path = self._add_impl_prefix(model_path)
         torch.save(self.state_dict(), model_path)
 
     def load_weights(self, model_path):
@@ -241,7 +250,7 @@ class Model(nn.Module):
         Args:
             model_path: A string with full path for model to be loaded from.
         """
-        model_path = self._add_impl_prefix(model_path)
+        # model_path = self._add_impl_prefix(model_path)
         self.load_state_dict(torch.load(model_path))
         self.eval()
 
@@ -250,4 +259,12 @@ class Model(nn.Module):
         """
         for name, layer in self.named_children():
             if name.startswith('conv'):
-                layer.requires_grad = False
+                layer.requires_grad_(False)
+
+    def cnn_output(self, X):
+        X = self._tensor_from_numpy(X)
+        for conv in self.conv_layers:
+            X = conv(X)
+        if len(self.conv_layers) > 0:
+            X = X.view(-1, self.fc_in_dim)
+        return self._numpy_from_tensor(X)
