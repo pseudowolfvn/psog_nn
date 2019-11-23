@@ -6,77 +6,207 @@ from sklearn.model_selection import train_test_split
 
 from ml.load_data import get_subj_data, reshape_into_grid
 from ml.utils import robust_scaler
-from utils.utils import find_record_dir
+from preproc.psog import PSOG
+from utils.utils import find_record_dir, find_filename
 
 
-def make_calib_grid_specific_data(data_id='randn', calib_grid=29, manual=False):
+def get_stim_pos_subj_data(root, subj_id):
+    subj_dir = find_record_dir(root, subj_id)
+    subj_root = os.path.join(root, subj_dir)
+
+    data_name = find_filename(
+        subj_root, 'StimulusPosition.tsv',
+        beg='Stimulus', end='.tsv'
+    )
+
+    data = pd.read_csv(os.path.join(subj_root, data_name), sep='\t')
+
+    mask = ['Timestamp', 'Parameter1', 'Parameter2']
+    return data[data.EventType == 3][mask][1:].values
+
+def get_subj_calib_data(root, subj_id, data_id):
+    subj_dir = find_record_dir(root, subj_id)
+    subj_root = os.path.join(root, subj_dir)
+
+    data_name = find_filename(
+        subj_root, '',
+        beg='', end='_v2_fixed_pred.csv'
+    )
+    data = pd.read_csv(os.path.join(subj_root, data_name), sep='\t')
+
+    stim_pos = get_stim_pos_subj_data(root, subj_id)
+
+    data['stim_pos_x'] = np.nan
+    data['stim_pos_y'] = np.nan
+
+    for i in range(len(stim_pos) - 1):
+    # for i in range(1):
+        beg = stim_pos[i][0]
+        end = stim_pos[i + 1][0]
+
+        stim_pos_x = stim_pos[i][1]
+        stim_pos_y = stim_pos[i][2]
+
+        time_mask = (data.time >= beg) & (data.time < end)
+        data.loc[time_mask, 'stim_pos_x'] = stim_pos_x
+        data.loc[time_mask, 'stim_pos_y'] = stim_pos_y
+    
+    return data
+
+def get_fix_bounds_stim_pos(root, subj_id):
+    subj_dir = find_record_dir(root, subj_id)
+    subj_root = os.path.join(root, subj_dir)
+
+    # data_name = r'..\output_manual_recomputed_medians.csv'
+    data_name = r'..\output_dbscan_medians.csv'
+    data = pd.read_csv(os.path.join(subj_root, data_name), sep=',')
+
+    subj_data = data[data.subj_id == int(subj_id)]
+
+    fix_bounds = subj_data[['fix_beg', 'fix_end']].values
+    stim_pos = subj_data[['stim_pos_x', 'stim_pos_y']].values
+
+    return fix_bounds, stim_pos
+
+def make_calib_grid_specific_data(data_id='randn', calib_grid=29, parser_mode='gt_vog'):
     def f(root, subj_id, arch, train_subjs):
         return get_specific_data(
             root, subj_id, arch,
             train_subjs=train_subjs,
             data_id=data_id,
             calib_grid=calib_grid,
-            manual=manual
+            parser_mode=parser_mode
         )
     return f
 
-def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', calib_grid=29, manual=False):
-    # fix_bounds, stim_pos = get_fix_bounds_stim_pos(root, subj_id)
-    print('DEBUG, getting data for:', subj_id, train_subjs, data_id, calib_grid, manual)
-    fix_bounds, stim_pos = filter_by_calib_grid(root, subj_id, calib_grid=calib_grid, manual=manual)
-    return get_calib_train_data(root, subj_id, arch, fix_bounds, stim_pos, data_id=data_id, train_subjs=train_subjs)
+def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', calib_grid=29, parser_mode=None):
+    # print('DEBUG, getting data for:', subj_id, train_subjs, data_id, calib_grid, manual)
+    print('DEBUG, getting data for:', subj_id, parser_mode)
 
-def get_calib_train_data(root, subj_id, arch, fix_bounds, stim_pos, data_id='randn', train_subjs=None):
+    data = get_subj_calib_data(root, subj_id, data_id=data_id)
+    stim_pos = get_stim_pos_subj_data(root, subj_id)
+
+    if parser_mode == 'gt_vog':
+        fix_bounds, _ = get_fix_bounds_stim_pos(root, subj_id)
+        data = ground_truth_vog(data, fix_bounds)
+    elif parser_mode == 'blind_temporal':
+        data = blind_temporal_parsing(data, stim_pos)
+    elif parser_mode == 'all_fix_uncalib_psog':
+        data = all_fix_uncalibrated_psog(data)
+    else:
+        print('ERROR: Unknown parsing mode:', parser_mode)
+        exit()
+
+    data = filter_by_calib_grid(data, stim_pos, calib_grid=calib_grid)\
+
     subj_dir = find_record_dir(root, subj_id)
     subj_root = os.path.join(root, subj_dir)
-    X, y = get_subj_data(subj_root, with_time=True, data_suffix=data_id)
-    #####################
-    # X, y = normalize_to_neutral(X, y, fix_bounds, stim_pos)
-    #####################
-    train_inds = []
-    test_inds = []
-    y_train = np.zeros((0, 2))
-    fix_ind = 0
-    ind = 0
-    # skip data before first calibration target
-    while X[ind, 0] < fix_bounds[0][0]:
-        ind += 1
-    while ind < X.shape[0]:
-        t = X[ind, 0]
-        if fix_ind >= len(fix_bounds) or t < fix_bounds[fix_ind][0]:
-            test_inds.append(ind)
+    data.to_csv(os.path.join(subj_root, 'DATA_' + parser_mode + '.csv'), sep='\t', index=False)
+
+    return get_train_calib_data(data, arch)
+
+def all_fix_uncalibrated_psog(data):
+    data['calib_fix'] = data['prediction']
+    return data
+
+def blind_temporal_parsing(data, stim_pos, BEG_DEL=735, END_DEL=-155):
+    stim_pos = filter_by_phase(stim_pos)
+
+    data['calib_fix'] = 0
+    for i in range(len(stim_pos) - 1):
+    # for i in range(1):
+        beg = stim_pos[i][0]
+        end = stim_pos[i + 1][0]
+
+        time_mask = (data.time >= beg + BEG_DEL) & (data.time <= end + END_DEL)
+        data.loc[time_mask, 'calib_fix'] = 1
+
+    return data
+
+def ground_truth_vog(data, fix_bounds):
+    data['calib_fix'] = 0
+    for fix in fix_bounds:
+        beg, end = fix
+
+        time_mask = (data.time >= beg) & (data.time <= end)
+        data.loc[time_mask, 'calib_fix'] = 1
+
+    return data
+
+def get_fix_bounds_from_timestamps(ts):
+    bounds = []
+    inside = False
+    b = e = None
+    for i in range(1, len(ts)):
+        if (ts[i] - ts[i - 1]) < 10.:
+            if not inside:
+                b = ts[i - 1]
+                inside = True
         else:
-            if t <= fix_bounds[fix_ind][1]:
-                train_inds.append(ind)
-                y_train = np.vstack((y_train, stim_pos[fix_ind]))
-            else:
-                fix_ind += 1
-        ind += 1
-    
-    X_train = X[train_inds, 1:]
-    # y_train = y[train_inds]
-    X_test = X[test_inds, 1:]
-    y_test = y[test_inds]
+            if inside:
+                e = ts[i - 1]
+                bounds.append((b, e))
+                inside = False
+    if inside:
+        e = ts[-1]
+        bounds.append((b, e))
+    return bounds
+
+def get_train_calib_data(data, arch):
+    X_train, X_test, y_train, y_test = split_data_train_calib_test(data, with_time=True)
+
+    # fixation_timestamps_sanity_check(X_train[:, 0])
+    X_train = X_train[:, 1:]
+    X_test = X_test[:, 1:]
 
     X_train, X_test = robust_scaler(X_train, X_test, pretrain_mode=False)
-    # X_train, X_test = normalize(X_train, X_test, 'cnn', train_subjs)
+
     X_train, X_val, y_train, y_val = train_test_split(
         X_train, y_train, test_size=0.2, random_state=42)
-    # X_test, X_val, y_test, y_val = train_test_split(
-    #     X_test, y_test, test_size=0.4, random_state=42)
-
+    
     if arch == 'cnn':
         X_train, X_val, X_test = reshape_into_grid(X_train, X_val, X_test)
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 
-def filter_by_calib_grid(root, subj_id, calib_grid=29, manual=False, BEG_LAT=725, END_LAT=225):
-    subj_dir = find_record_dir(root, subj_id)
-    data_name = r'..\output_manual_recomputed_medians.csv'
-    data = pd.read_csv(os.path.join(root, subj_dir, data_name), sep=',')
-    data = data.drop(data[data.subj_id != int(subj_id)].index)
-    data = data.reset_index()
+def split_data_train_calib_test(data, with_shifts=False, with_time=False):
+    X_cols = (['time'] if with_time else []) + \
+        PSOG().get_names() + \
+        (['sh_hor', 'sh_ver'] if with_shifts else [])
 
+    train_mask = data.calib_fix == 1
+    # because the fixation can be longer than a calibration target
+    # it can overlap with the next one!
+    # so we will assign the calibration position according to the first
+    # timestamp of every fixation instead of directly using 
+    # data.stim_pos_x and data.stim_pos_y
+    fix_ts = data.loc[train_mask, 'time'].values
+    calib_fix = get_fix_bounds_from_timestamps(fix_ts)
+
+    X_train = []
+    y_train = []
+
+    for fix in calib_fix:
+        beg, end = fix
+        time_mask = (data.time >= beg) & (data.time <= end)
+
+
+        X_train.extend(data.loc[time_mask, X_cols].values)
+
+        stim_pos = data[data.time == beg][['stim_pos_x', 'stim_pos_y']].values
+        stim_len = data.loc[time_mask].shape[0]
+        y_train.extend(np.tile(stim_pos, (stim_len, 1)))
+
+    X_train = np.array(X_train)
+    y_train = np.array(y_train)
+
+    test_mask = data.calib_fix == 0
+    X_test = data.loc[test_mask, X_cols].values
+    y_test = data.loc[test_mask, ['pos_x', 'pos_y']].values
+
+    return X_train, X_test, y_train, y_test
+
+def filter_by_calib_grid(data, stim_pos, calib_grid=29):
     not_in_grid = []
     if calib_grid <= 25 and calib_grid != 13:
         not_in_grid += [5, 10, 11, 21]
@@ -89,22 +219,30 @@ def filter_by_calib_grid(root, subj_id, calib_grid=29, manual=False, BEG_LAT=725
     if calib_grid <= 5:
         not_in_grid += [14, 25, 3, 1]
 
-    calib_inds = [i for i in range(0, 28 + 1) if i not in not_in_grid]
-    if manual:
-        fix_bounds = data.loc[calib_inds, ['fix_beg', 'fix_end']].values
-    else:
-        stim_bounds = data.loc[calib_inds, ['stim_beg', 'stim_end']].values
-        fix_bounds = np.array([(x + BEG_LAT, y - END_LAT) for (x, y) in stim_bounds])
+    for i in not_in_grid:
+        beg = stim_pos[i][0]
+        end = stim_pos[i + 1][0]
 
-    stim_pos = data.loc[calib_inds, ['stim_pos_x', 'stim_pos_y']].values
+        time_mask = (data.time >= beg) & (data.time < end)
+        data.loc[time_mask, 'calib_fix'] = 0
 
-    return fix_bounds, stim_pos
+    return data
 
-def get_fix_bounds_stim_pos(root, subj_id):
-    subj_dir = find_record_dir(root, subj_id)
-    data_name = r'..\output_manual_recomputed_medians.csv'
-    data = pd.read_csv(os.path.join(root, subj_dir, data_name), sep=',')
-    subj_data = data[data.subj_id == int(subj_id)]
-    fix_bounds = subj_data[['fix_beg', 'fix_end']].values
-    stim_pos = subj_data[['stim_pos_x', 'stim_pos_y']].values
-    return fix_bounds, stim_pos
+def filter_by_phase(data, ph='1'):
+    phases = {
+        '1': (0, 29),
+        '2': (29, 78),
+        '3': (78, 174)
+    }
+    id_from = phases[ph][0]
+    id_to = phases[ph][1] + 1
+    return data[id_from: id_to]
+
+if __name__ == '__main__':
+    import sys
+    root = sys.argv[1]
+    subj_id = str(sys.argv[2])
+
+    f = make_calib_grid_specific_data(parser_mode='gt_vog')
+
+    X_train, _, _, y_train, _, _ = f(root, subj_id, 'mlp', train_subjs=None)
