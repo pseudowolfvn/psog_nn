@@ -1,5 +1,7 @@
 """ Utility functions.
 """
+import os
+
 import numpy as np
 
 
@@ -109,3 +111,24 @@ def list_if_not(x):
         'x' enclosed in the list if it's not the list, 'x' otherwise.
     """
     return [x] if not isinstance(x, list) else x
+
+def find_filename(root, default_name, beg=None, end=None):
+    data_name = default_name
+    for filename in os.listdir(root):
+        if (beg is None or filename.startswith(beg)) \
+                and (end is None or filename.endswith(end)):
+            data_name = filename
+    return data_name
+
+def extract_subj_id_from_dir(subj_dir):
+    return subj_dir.split('_')[-1]
+
+def find_record_dir(root, id):
+    record_dir = ''
+    for dirname in os.listdir(root):
+        if not os.path.isdir(os.path.join(root, dirname)):
+            continue
+        if dirname.startswith('Record') \
+                and extract_subj_id_from_dir(dirname) == id:
+            record_dir = dirname
+    return record_dir

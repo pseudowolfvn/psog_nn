@@ -6,14 +6,16 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 import pandas as pd
+from scipy.io import loadmat
 from sklearn.model_selection import train_test_split
 
 from ml.utils import filter_outliers, normalize
 from preproc.psog import PSOG
-from utils.utils import list_if_not, deg_to_pix
+from utils.utils import list_if_not, deg_to_pix, find_filename, extract_subj_id_from_dir
 
 
-def get_subj_data(subj_root, sensor=None):
+def get_subj_data(subj_root, sensor=None, with_shifts=False, with_time=False, data_suffix='randn_v2'):
+    # TODO: update comment for new parameters
     """Get data for provided subject.
 
     Args:
@@ -27,18 +29,27 @@ def get_subj_data(subj_root, sensor=None):
     if sensor is None:
         sensor = PSOG()
 
-    data_name = Path(subj_root).name + '_' + sensor.arch + '.csv'
+    data_name = find_filename(subj_root, '', beg='Record', end='_' + data_suffix + '.csv')
     data_path = os.path.join(subj_root, data_name)
     data = pd.read_csv(data_path, sep='\t')
 
-    data = filter_outliers(data)
+    matlab_name = find_filename(subj_root, '', beg='Recording_', end='Velocity.mat')
+    matlab_path = os.path.join(subj_root, matlab_name)
+    matlab_data = loadmat(matlab_path)
 
-    X = data[sensor.get_names()].values
+    data = filter_outliers(data, matlab_data)
+
+    X_cols = (['time'] if with_time else []) + \
+        sensor.get_names() + \
+        (['sh_hor', 'sh_ver'] if with_shifts else [])
+
+    X = data[X_cols].values
     y = data[['pos_x', 'pos_y']].values
 
     return X, y
 
-def get_data(root, subj_ids=None):
+def get_data(root, subj_ids=None, with_shifts=False, with_time=False, data_suffix='randn_v2'):
+    # TODO: update comment for new parameters
     """Get data for the provided list of subjects.
 
     Args:
@@ -59,10 +70,15 @@ def get_data(root, subj_ids=None):
     y_data = []
     sensor = PSOG()
     for dirname in os.listdir(root):
-        if subj_ids is not None and dirname not in subj_ids:
+        if subj_ids is not None and \
+                extract_subj_id_from_dir(dirname) not in subj_ids:
             continue
         subj_root = os.path.join(root, dirname)
-        X, y = get_subj_data(subj_root, sensor)
+        X, y = get_subj_data(
+            subj_root, sensor,
+            with_shifts=with_shifts, with_time=with_time,
+            data_suffix=data_suffix
+        )
 
         X_data.extend(X)
         y_data.extend(y)
@@ -294,3 +310,6 @@ def find_train_test_split(subj):
         if subj in split:
             return split_test_from_all(split)
     return None
+
+def get_loo_subjs_split():
+    return [[str(i)] for i in range(1, 41)]

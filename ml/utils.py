@@ -2,8 +2,10 @@
 """
 import os
 
+import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.externals import joblib
+from sklearn.preprocessing import RobustScaler
 
 
 def default_config_if_none(learning_config):
@@ -35,7 +37,7 @@ def get_module_prefix():
     """
     return 'ml'
 
-def get_model_path(subjs, params):
+def get_model_path(subjs, params, impl='torch'):
     """Get corresponding model path realtive to the project's root.
 
     Args:
@@ -49,10 +51,11 @@ def get_model_path(subjs, params):
     return os.path.join(
         get_module_prefix(),
         'models',
-        str(params) + '_' + str(subjs) + '.h5'
+        impl + '_' + str(params) + '_' + str(subjs) + '.h5'
     )
 
-def filter_outliers(data, verbose=False):
+def filter_outliers(data, matlab_data, verbose=False):
+    # TODO: update comment for new parameters
     """Remove outliers from the data.
 
     Args:
@@ -63,13 +66,19 @@ def filter_outliers(data, verbose=False):
     Returns:
         A pandas DataFrame with removed outliers.
     """
-    outliers = data[
-        (data.pos_x.abs() > 20.)
-        | (data.pos_y.abs() > 20)
-    ]
+    # outliers = data[
+    #     (data.pos_x.abs() > 20.51 + 1.5)
+    #     | (data.pos_y.abs() > 16.7 + 1.5)
+    # ]
+
+    invalid_samples = np.array(matlab_data['InvalidSamples'])
+    mask = (invalid_samples[:, 0] == 1)
+
+    outliers = np.where(mask)[0]
     if verbose:
         print(outliers)
-    return data.drop(outliers.index)
+
+    return data.drop(outliers, axis=0)
 
 def normalize(X_train, X_test, arch, train_subjs=None):
     """Do data whitening and additional dimensionality reduction with PCA
@@ -88,6 +97,8 @@ def normalize(X_train, X_test, arch, train_subjs=None):
     # we need to dump and load PCA (or only whitening in case of CNN)
     # results if any pool of train_subjs is provided
     should_load = train_subjs is not None
+    # TODO: decide if normalizer should be applied from pre-training stage
+    should_load = False
 
     if should_load:
         norm_dir = os.path.join(get_module_prefix(), 'pca')
@@ -115,4 +126,16 @@ def normalize(X_train, X_test, arch, train_subjs=None):
 
     X_train = normalizer.transform(X_train)
     X_test = normalizer.transform(X_test)
+    return X_train, X_test
+
+# TODO: decide if scaler should be applied from pre-training stage.
+# Now it doesn't. Please, consult older version of normalize() function
+# when it was applied in 'develop\27a4679' in case it's needed again.
+def robust_scaler(X_train, X_test=None, pretrain_mode=False):
+    normalizer = RobustScaler()
+    normalizer.fit(X_train)
+
+    X_train = normalizer.transform(X_train)
+    if not pretrain_mode:
+        X_test = normalizer.transform(X_test)
     return X_train, X_test
