@@ -2,11 +2,13 @@ import os
 
 import numpy as np
 import pandas as pd
+from scipy.io import loadmat
 from sklearn.model_selection import train_test_split
 
-from ml.load_data import get_subj_data, reshape_into_grid
+from ml.load_data import get_subj_data, reshape_into_grid, filter_outliers
 from ml.utils import robust_scaler
 from preproc.psog import PSOG
+from utils.metrics import calc_acc
 from utils.utils import find_record_dir, find_filename
 
 
@@ -32,7 +34,14 @@ def get_subj_calib_data(root, subj_id, data_id):
         subj_root, '',
         beg='', end='_v2_fixed_pred.csv'
     )
-    data = pd.read_csv(os.path.join(subj_root, data_name), sep='\t')
+    data_path = os.path.join(subj_root, data_name)
+    data = pd.read_csv(data_path, sep='\t')
+
+    matlab_name = find_filename(subj_root, '', beg='Recording_', end='Velocity.mat')
+    matlab_path = os.path.join(subj_root, matlab_name)
+    matlab_data = loadmat(matlab_path)
+
+    data = filter_outliers(data, matlab_data)
 
     stim_pos = get_stim_pos_subj_data(root, subj_id)
 
@@ -153,23 +162,53 @@ def get_fix_bounds_from_timestamps(ts):
     return bounds
 
 def get_train_calib_data(data, arch):
-    X_train, X_test, y_train, y_test = split_data_train_calib_test(data, with_time=True)
+    X_train, X_val, X_test, y_train, y_val, y_test = \
+        split_data_train_val_calib_test(data, with_time=True)
 
     # fixation_timestamps_sanity_check(X_train[:, 0])
-    X_train = X_train[:, 1:]
-    X_test = X_test[:, 1:]
+    # X_train = X_train[:, 1:]
+    # X_val = X_val[:, 1:]
+    # X_test = X_test[:, 1:]
 
-    X_train, X_test = robust_scaler(X_train, X_test, pretrain_mode=False)
+    # X_train, X_test = robust_scaler(X_train, X_test, pretrain_mode=False)
 
-    X_train, X_val, y_train, y_val = train_test_split(
-        X_train, y_train, test_size=0.2, random_state=42)
+    # X_train, X_val, y_train, y_val = train_test_split(
+    #     X_train, y_train, test_size=0.2, random_state=42)
     
     if arch == 'cnn':
         X_train, X_val, X_test = reshape_into_grid(X_train, X_val, X_test)
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 
-def split_data_train_calib_test(data, with_shifts=False, with_time=False):
+def split_data_train_val_calib_test(data, with_shifts=False, with_time=False):
+    def is_val_grid(stim_pos):
+        val_grid = [
+            [-12., 6.48],
+            [-12., -6.48],
+            [12., 6.48],
+            [12., -6.48]
+        ]
+
+        stim_x, stim_y = stim_pos
+
+        for val_pos in val_grid:
+            val_x, val_y = val_pos
+            if np.abs(val_x - stim_x) < 0.01 and np.abs(val_y - stim_y) < 0.01:
+                return True
+
+        return False
+
+    def compliance_report(i, y_gt, y_stim):
+        print(
+            'Target {:-3d}: ({:-6.2f}, {:-6.2f})'.format(i, *y_stim[0]),
+            'Err: {:.3f}'.format(
+                calc_acc(
+                    y_gt,
+                    y_stim
+                )
+            )
+        )
+
     X_cols = (['time'] if with_time else []) + \
         PSOG().get_names() + \
         (['sh_hor', 'sh_ver'] if with_shifts else [])
@@ -186,25 +225,39 @@ def split_data_train_calib_test(data, with_shifts=False, with_time=False):
     X_train = []
     y_train = []
 
-    for fix in calib_fix:
+    X_val = []
+    y_val = []
+
+    for i, fix in enumerate(calib_fix):
         beg, end = fix
         time_mask = (data.time >= beg) & (data.time <= end)
 
-
-        X_train.extend(data.loc[time_mask, X_cols].values)
-
         stim_pos = data[data.time == beg][['stim_pos_x', 'stim_pos_y']].values
         stim_len = data.loc[time_mask].shape[0]
-        y_train.extend(np.tile(stim_pos, (stim_len, 1)))
+
+        X_temp = data.loc[time_mask, X_cols].values
+        y_temp = np.tile(stim_pos, (stim_len, 1))
+
+        # compliance_report(i, data.loc[time_mask][['pos_x', 'pos_y']].values, y_temp)
+
+        if is_val_grid(stim_pos[0]):
+            X_val.extend(X_temp)
+            y_val.extend(y_temp)
+        else:
+            X_train.extend(X_temp)
+            y_train.extend(y_temp)
 
     X_train = np.array(X_train)
     y_train = np.array(y_train)
+
+    X_val = np.array(X_val)
+    y_val = np.array(y_val)
 
     test_mask = data.calib_fix == 0
     X_test = data.loc[test_mask, X_cols].values
     y_test = data.loc[test_mask, ['pos_x', 'pos_y']].values
 
-    return X_train, X_test, y_train, y_test
+    return X_train, X_val, X_test, y_train, y_val, y_test
 
 def filter_by_calib_grid(data, stim_pos, calib_grid=29):
     not_in_grid = []
@@ -245,4 +298,17 @@ if __name__ == '__main__':
 
     f = make_calib_grid_specific_data(parser_mode='gt_vog')
 
-    X_train, _, _, y_train, _, _ = f(root, subj_id, 'mlp', train_subjs=None)
+    X_train, X_val, _, y_train, y_val, _ = f(root, subj_id, 'mlp', train_subjs=None)
+
+    train_ts = get_fix_bounds_from_timestamps(X_train[:, 0])
+    val_ts = get_fix_bounds_from_timestamps(X_val[:, 0])
+
+    i = 0
+    for ts in val_ts:
+        b, e = ts
+        while X_val[i, 0] != b:
+            i += 1
+        print(b, X_val[i, 0], y_val[i, :])
+        while X_val[i, 0] != e:
+            i += 1
+        print(e, X_val[i, 0], y_val[i, :])
