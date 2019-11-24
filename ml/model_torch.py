@@ -1,5 +1,6 @@
 """ Models implementation.
 """
+from collections import OrderedDict
 import os
 from pathlib import Path
 import time
@@ -170,19 +171,24 @@ class Model(nn.Module):
             # Early stopping
             if best_loss is None:
                 best_loss = val_loss
+                torch.save(self.state_dict(), 'early_stopping.pt')
             # elif val_loss >= best_loss:
             elif (best_loss - val_loss) / best_loss < 0.01:
                 counter += 1
                 if counter >= patience:
                     print('Early stopping triggered on epoch:', epoch)
                     print(
-                        'Train loss: {:.2f}, val loss: {:.2f}, best val loss: {:.2f}'.format(
+                        'Train loss: {:.3f}, val loss: {:.3f}, best val loss: {:.3f}'.format(
                             train_loss, val_loss, best_loss
                         )
                     )
+                    print('BEFORE:', self.state_dict()['fc0.weight'])
+                    self.load_state_dict(torch.load('early_stopping.pt'))
+                    print('AFTER:', self.state_dict()['fc0.weight'])
                     break
             else:
                 best_loss = val_loss
+                torch.save(self.state_dict(), 'early_stopping.pt')
                 counter = 0
 
         return time.time() - fit_time, loss_history
