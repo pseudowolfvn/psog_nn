@@ -102,6 +102,8 @@ def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', ca
         data = blind_temporal_parsing(data, stim_pos)
     elif parser_mode == 'all_fix_uncalib_psog':
         data = all_fix_uncalibrated_psog(data)
+    elif parser_mode == 'temporal_stable_regions':
+        data = temporal_with_stable_regions(data, stim_pos)
     else:
         print('ERROR: Unknown parsing mode:', parser_mode)
         exit()
@@ -113,6 +115,20 @@ def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', ca
     data.to_csv(os.path.join(subj_root, 'DATA_' + parser_mode + '.csv'), sep='\t', index=False)
 
     return get_train_calib_data(data, arch)
+
+def temporal_with_stable_regions(data, stim_pos, BEG_DEL=735, END_DEL=-155):
+    stim_pos = filter_by_phase(stim_pos)
+
+    data['calib_fix'] = 0
+    for i in range(len(stim_pos) - 1):
+    # for i in range(1):
+        beg = stim_pos[i][0]
+        end = stim_pos[i + 1][0]
+
+        time_mask = (data.time >= beg + BEG_DEL) & (data.time <= end + END_DEL)
+        data.loc[time_mask, 'calib_fix'] = data.loc[time_mask, 'prediction']
+
+    return data
 
 def all_fix_uncalibrated_psog(data):
     data['calib_fix'] = data['prediction']
