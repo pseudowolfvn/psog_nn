@@ -166,11 +166,11 @@ def get_train_calib_data(data, arch):
         split_data_train_val_calib_test(data, with_time=True)
 
     # fixation_timestamps_sanity_check(X_train[:, 0])
-    # X_train = X_train[:, 1:]
-    # X_val = X_val[:, 1:]
-    # X_test = X_test[:, 1:]
+    X_train = X_train[:, 1:]
+    X_val = X_val[:, 1:]
+    X_test = X_test[:, 1:]
 
-    # X_train, X_test = robust_scaler(X_train, X_test, pretrain_mode=False)
+    X_train, [X_val, X_test] = robust_scaler(X_train, X_to_scale=[X_val, X_test])
 
     # X_train, X_val, y_train, y_val = train_test_split(
     #     X_train, y_train, test_size=0.2, random_state=42)

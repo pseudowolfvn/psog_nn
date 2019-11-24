@@ -131,11 +131,12 @@ def normalize(X_train, X_test, arch, train_subjs=None):
 # TODO: decide if scaler should be applied from pre-training stage.
 # Now it doesn't. Please, consult older version of normalize() function
 # when it was applied in 'develop\27a4679' in case it's needed again.
-def robust_scaler(X_train, X_test=None, pretrain_mode=False):
-    normalizer = RobustScaler()
-    normalizer.fit(X_train)
+def robust_scaler(X_train, X_to_scale=[], pretrain_mode=False):
+    scaler = RobustScaler()
+    scaler.fit(X_train)
 
-    X_train = normalizer.transform(X_train)
+    X_train = scaler.transform(X_train)
     if not pretrain_mode:
-        X_test = normalizer.transform(X_test)
-    return X_train, X_test
+        return X_train, [scaler.transform(X) for X in X_to_scale]
+    else:
+        return X_train, X_to_scale
