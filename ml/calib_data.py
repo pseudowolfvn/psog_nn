@@ -102,6 +102,8 @@ def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', ca
         data = blind_temporal_parsing(data, stim_pos)
     elif parser_mode == 'all_fix_uncalib_psog':
         data = all_fix_uncalibrated_psog(data)
+    elif parser_mode == 'longest_fix_uncalib_psog':
+        data = longest_fix_uncalibrated_psog(data, stim_pos)
     elif parser_mode == 'temporal_stable_regions':
         data = temporal_with_stable_regions(data, stim_pos)
     else:
@@ -131,8 +133,51 @@ def temporal_with_stable_regions(data, stim_pos, BEG_DEL=735, END_DEL=-155):
     return data
 
 def all_fix_uncalibrated_psog(data):
-    data['calib_fix'] = data['prediction']
+    data['calib_fix'] = 0
+    data.loc[data.prediction == 1, 'calib_fix'] = 1
+
     return data
+
+def longest_fix_uncalibrated_psog(data, stim_pos):
+    def get_stim_fix_mask(data, beg, end):
+        return (data.time >= beg) & \
+            (data.time <= end) & \
+            (data.prediction == 1)
+
+    def get_longest_fix(bounds):
+        best = bounds[0]
+        for b in bounds:
+            if (best[1] - best[0]) < (b[1] - b[0]):
+                best = b
+        return best
+
+    stim_pos = filter_by_phase(stim_pos)
+
+    data['calib_fix'] = 0
+    for i in range(len(stim_pos) - 1):
+    # for i in range(1):
+        beg = stim_pos[i][0]
+        end = stim_pos[i + 1][0]
+
+        all_stim_fix_mask = get_stim_fix_mask(data, beg, end)
+
+        all_stim_fix = get_fix_bounds_from_timestamps(
+            data.loc[all_stim_fix_mask].time.values
+        )
+
+        # no fixation at the calibration target detected
+        if len(all_stim_fix) == 0:
+            continue
+
+        longest_stim_fix = get_longest_fix(all_stim_fix)
+        beg, end = longest_stim_fix
+        longest_stim_fix_mask = get_stim_fix_mask(data, beg, end)
+        
+        data.loc[longest_stim_fix_mask, 'calib_fix'] = \
+            data.loc[longest_stim_fix_mask, 'prediction']
+
+    return data
+
 
 def blind_temporal_parsing(data, stim_pos, BEG_DEL=735, END_DEL=-155):
     stim_pos = filter_by_phase(stim_pos)
@@ -195,6 +240,9 @@ def get_train_calib_data(data, arch):
         X_train, X_val, X_test = reshape_into_grid(X_train, X_val, X_test)
 
     return X_train, X_val, X_test, y_train, y_val, y_test
+    # return test set as validation
+    # useful for debugging purposes
+    # return X_train, X_test, X_test, y_train, y_test, y_test
 
 def split_data_train_val_calib_test(data, with_shifts=False, with_time=False):
     def is_val_grid(stim_pos):
@@ -312,19 +360,52 @@ if __name__ == '__main__':
     root = sys.argv[1]
     subj_id = str(sys.argv[2])
 
-    f = make_calib_grid_specific_data(parser_mode='gt_vog')
+    f = make_calib_grid_specific_data(parser_mode='all_fix_uncalib_psog')
 
-    X_train, X_val, _, y_train, y_val, _ = f(root, subj_id, 'mlp', train_subjs=None)
+    X_train, X_val, X_test, y_train, y_val, y_test = f(root, subj_id, 'mlp', train_subjs=None)
+
+    print(X_train.shape)
+    print(X_val.shape)
+    print(X_test.shape)
+    exit()
 
     train_ts = get_fix_bounds_from_timestamps(X_train[:, 0])
     val_ts = get_fix_bounds_from_timestamps(X_val[:, 0])
 
-    i = 0
-    for ts in val_ts:
-        b, e = ts
-        while X_val[i, 0] != b:
-            i += 1
-        print(b, X_val[i, 0], y_val[i, :])
-        while X_val[i, 0] != e:
-            i += 1
-        print(e, X_val[i, 0], y_val[i, :])
+    # i = 0
+    # for ts in val_ts:
+    #     b, e = ts
+    #     while X_val[i, 0] != b:
+    #         i += 1
+    #     print(b, X_val[i, 0], y_val[i, :])
+    #     while X_val[i, 0] != e:
+    #         i += 1
+    #     print(e, X_val[i, 0], y_val[i, :])
+
+    def plot_stats(X_train, X_val, X_test):
+        import plotly.graph_objs as go
+        from plotly.offline import plot
+        from plotly.subplots import make_subplots
+
+        fig = make_subplots(rows=3, cols=X_train.shape[1])
+
+        row = 1
+        for X, name in zip([X_train, X_val, X_test], ['train', 'val', 'test']):
+            N = X.shape[1]
+            col = 1
+            for i in range(N):
+                trace = go.Histogram(
+                    x=X[:, i],
+                    name=name + '_' + str(i),
+                    histnorm='probability'
+                )
+                print('Append: ', row, col)
+                fig.append_trace(trace, row, col)
+                col += 1
+
+            row += 1
+
+        fig.update_xaxes(range=[-2., 2.])
+        plot(fig)
+
+    plot_stats(X_train, X_val, X_test)
