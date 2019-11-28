@@ -32,7 +32,7 @@ def get_subj_calib_data(root, subj_id, data_id):
 
     data_name = find_filename(
         subj_root, '',
-        beg='', end='_v2_fixed_pred.csv'
+        beg='', end='randn_v3_pred.csv'
     )
     data_path = os.path.join(subj_root, data_name)
     data = pd.read_csv(data_path, sep='\t')
@@ -67,7 +67,8 @@ def get_fix_bounds_stim_pos(root, subj_id):
     subj_root = os.path.join(root, subj_dir)
 
     # data_name = r'..\output_manual_recomputed_medians.csv'
-    data_name = r'..\output_dbscan_medians.csv'
+    # data_name = r'..\output_dbscan_medians.csv'
+    data_name = r'..\output_dbscan_medians_val.csv'
     data = pd.read_csv(os.path.join(subj_root, data_name), sep=',')
 
     subj_data = data[data.subj_id == int(subj_id)]
@@ -95,8 +96,8 @@ def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', ca
     data = get_subj_calib_data(root, subj_id, data_id=data_id)
     stim_pos = get_stim_pos_subj_data(root, subj_id)
 
+    fix_bounds, _ = get_fix_bounds_stim_pos(root, subj_id)
     if parser_mode == 'gt_vog':
-        fix_bounds, _ = get_fix_bounds_stim_pos(root, subj_id)
         data = ground_truth_vog(data, fix_bounds)
     elif parser_mode == 'blind_temporal':
         data = blind_temporal_parsing(data, stim_pos)
@@ -110,7 +111,8 @@ def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', ca
         print('ERROR: Unknown parsing mode:', parser_mode)
         exit()
 
-    data = filter_by_calib_grid(data, stim_pos, calib_grid=calib_grid)\
+    data = mark_val_set(data, fix_bounds, stim_pos)
+    data = filter_by_calib_grid(data, stim_pos, calib_grid=calib_grid)
 
     subj_dir = find_record_dir(root, subj_id)
     subj_root = os.path.join(root, subj_dir)
@@ -245,23 +247,6 @@ def get_train_calib_data(data, arch):
     # return X_train, X_test, X_test, y_train, y_test, y_test
 
 def split_data_train_val_calib_test(data, with_shifts=False, with_time=False):
-    def is_val_grid(stim_pos):
-        val_grid = [
-            [-12., 6.48],
-            [-12., -6.48],
-            [12., 6.48],
-            [12., -6.48]
-        ]
-
-        stim_x, stim_y = stim_pos
-
-        for val_pos in val_grid:
-            val_x, val_y = val_pos
-            if np.abs(val_x - stim_x) < 0.01 and np.abs(val_y - stim_y) < 0.01:
-                return True
-
-        return False
-
     def compliance_report(i, y_gt, y_stim):
         print(
             'Target {:-3d}: ({:-6.2f}, {:-6.2f})'.format(i, *y_stim[0]),
@@ -277,14 +262,14 @@ def split_data_train_val_calib_test(data, with_shifts=False, with_time=False):
         PSOG().get_names() + \
         (['sh_hor', 'sh_ver'] if with_shifts else [])
 
-    train_mask = data.calib_fix == 1
+    train_val_mask = (data.calib_fix == 1) | (data.calib_fix == 2)
     # because the fixation can be longer than a calibration target
     # it can overlap with the next one!
     # so we will assign the calibration position according to the first
     # timestamp of every fixation instead of directly using 
     # data.stim_pos_x and data.stim_pos_y
-    fix_ts = data.loc[train_mask, 'time'].values
-    calib_fix = get_fix_bounds_from_timestamps(fix_ts)
+    fix_ts = data.loc[train_val_mask, 'time'].values
+    train_val_fix = get_fix_bounds_from_timestamps(fix_ts)
 
     X_train = []
     y_train = []
@@ -292,7 +277,7 @@ def split_data_train_val_calib_test(data, with_shifts=False, with_time=False):
     X_val = []
     y_val = []
 
-    for i, fix in enumerate(calib_fix):
+    for i, fix in enumerate(train_val_fix):
         beg, end = fix
         time_mask = (data.time >= beg) & (data.time <= end)
 
@@ -304,7 +289,7 @@ def split_data_train_val_calib_test(data, with_shifts=False, with_time=False):
 
         # compliance_report(i, data.loc[time_mask][['pos_x', 'pos_y']].values, y_temp)
 
-        if is_val_grid(stim_pos[0]):
+        if data[data.time == beg].calib_fix.values[0] == 2:
             X_val.extend(X_temp)
             y_val.extend(y_temp)
         else:
@@ -345,6 +330,51 @@ def filter_by_calib_grid(data, stim_pos, calib_grid=29):
 
     return data
 
+def mark_val_set(data, fix_bounds, stim_pos):
+    def mark_best_val_by_compliance(data, fix_bounds, stim_pos, inds):
+        def compute_compliance(data, tar_fix, tar_pos):
+            b, e = tar_fix
+            fix_mask = (data.time >= b) & (data.time <= e)
+            fix_pos = data.loc[fix_mask, ['pos_x', 'pos_y']].values
+            compl = calc_acc(
+                np.array([np.median(fix_pos, 0)]),
+                np.array([tar_pos])
+            )
+            print('VAL, compliance:', tar_fix, tar_pos, compl)
+            return compl
+
+        best = None
+        best_ind = None
+        for i in inds:
+            curr = compute_compliance(data, fix_bounds[i], stim_pos[i, -2:])
+            if best is None or curr < best:
+                best = curr
+                best_ind = i
+
+        print('VAL, the best target for validation:', stim_pos[best_ind, -2:])
+        b, e = fix_bounds[best_ind]
+        val_mask = (data.time >= b) & (data.time <= e)
+        data.loc[val_mask, 'calib_fix'] = 2
+
+        return data
+
+    val_inds_per_quadrant = [
+        # I Quadrant
+        [31, 33, 54, 72],
+        # II Quadrant
+        [30, 60, 70, 71],
+        # III Quadrant
+        [36, 61, 63, 67],
+        # IV Quadrant
+        [57, 58, 68, 75]
+    ]
+    
+    for q, inds in enumerate(val_inds_per_quadrant):
+        print('VAL, getting the best target for quadrant: ', q + 1)
+        data = mark_best_val_by_compliance(data, fix_bounds, stim_pos, inds)
+    
+    return data
+
 def filter_by_phase(data, ph='1'):
     phases = {
         '1': (0, 29),
@@ -367,6 +397,17 @@ if __name__ == '__main__':
     print(X_train.shape)
     print(X_val.shape)
     print(X_test.shape)
+
+    # zero_pos_train = (np.abs(y_train[:, 0]) < 0.5) & (np.abs(y_train[:, 1]) < 0.5)
+    # zero_pos_test = (np.abs(y_test[:, 0]) < 0.5) & (np.abs(y_test[:, 1]) < 0.5)
+    # train_stats = np.median(X_train[zero_pos_train], axis=0)
+    # test_stats = np.median(X_test[zero_pos_test], axis=0)
+    # # diff_stats = (train_stats - test_stats) / train_stats
+    # stats = np.vstack((X_train[zero_pos_train], X_test[zero_pos_test]))
+    # diff_stats = np.std(stats, axis=0)
+    # for d in diff_stats:
+    #     print('{:-6.2f}'.format(d))
+    # print(np.max(diff_stats))
     exit()
 
     train_ts = get_fix_bounds_from_timestamps(X_train[:, 0])
