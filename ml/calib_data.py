@@ -99,10 +99,12 @@ def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', ca
     fix_bounds, _ = get_fix_bounds_stim_pos(root, subj_id)
     if parser_mode == 'gt_vog':
         data = ground_truth_vog(data, fix_bounds)
+    elif parser_mode == 'blind_baseline':
+        data = blind_baseline(data, stim_pos)
     elif parser_mode == 'blind_temporal':
-        data = blind_temporal_parsing(data, stim_pos)
+        data = blind_temporal(data, stim_pos)
     elif parser_mode == 'all_fix_uncalib_psog':
-        data = all_fix_uncalibrated_psog(data)
+        data = all_fix_uncalibrated_psog(data, stim_pos)
     elif parser_mode == 'longest_fix_uncalib_psog':
         data = longest_fix_uncalibrated_psog(data, stim_pos)
     elif parser_mode == 'temporal_stable_regions':
@@ -134,9 +136,17 @@ def temporal_with_stable_regions(data, stim_pos, BEG_DEL=735, END_DEL=-155):
 
     return data
 
-def all_fix_uncalibrated_psog(data):
+def all_fix_uncalibrated_psog(data, stim_pos):
+    stim_pos = filter_by_phase(stim_pos)
+    beg = stim_pos[0][0]
+    end = stim_pos[-1][0]
+
+    all_fix_mask = (data.time >= beg) & \
+        (data.time <= end) & \
+        (data.prediction == 1)
+
     data['calib_fix'] = 0
-    data.loc[data.prediction == 1, 'calib_fix'] = 1
+    data.loc[all_fix_mask, 'calib_fix'] = 1
 
     return data
 
@@ -181,7 +191,10 @@ def longest_fix_uncalibrated_psog(data, stim_pos):
     return data
 
 
-def blind_temporal_parsing(data, stim_pos, BEG_DEL=735, END_DEL=-155):
+def blind_baseline(data, stim_pos, LAT=225):
+    return blind_temporal(data, stim_pos, BEG_DEL=LAT, END_DEL=-LAT)
+
+def blind_temporal(data, stim_pos, BEG_DEL=735, END_DEL=-155):
     stim_pos = filter_by_phase(stim_pos)
 
     data['calib_fix'] = 0
@@ -270,6 +283,7 @@ def split_data_train_val_calib_test(data, with_shifts=False, with_time=False):
     # data.stim_pos_x and data.stim_pos_y
     fix_ts = data.loc[train_val_mask, 'time'].values
     train_val_fix = get_fix_bounds_from_timestamps(fix_ts)
+    data.to_csv('debug_calib_data.csv', sep='\t')
 
     X_train = []
     y_train = []
