@@ -209,6 +209,8 @@ def blind_temporal(data, stim_pos, BEG_DEL=735, END_DEL=-155):
     return data
 
 def ground_truth_vog(data, fix_bounds):
+    fix_bounds = filter_by_phase(fix_bounds)
+
     data['calib_fix'] = 0
     for fix in fix_bounds:
         beg, end = fix
