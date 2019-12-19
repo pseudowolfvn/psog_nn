@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.io import loadmat
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import RobustScaler
 
 from ml.load_data import get_subj_data, reshape_into_grid, filter_outliers
 from ml.utils import robust_scaler
@@ -32,8 +33,10 @@ def get_subj_calib_data(root, subj_id, data_id):
 
     data_name = find_filename(
         subj_root, '',
-        beg='', end='randn_v3_pred.csv'
+        beg='', end=data_id + '_v3_pred.csv'
     )
+    print('Loading data for subject:', subj_root)
+    print('Data filename:', data_name)
     data_path = os.path.join(subj_root, data_name)
     data = pd.read_csv(data_path, sep='\t')
 
@@ -68,7 +71,8 @@ def get_fix_bounds_stim_pos(root, subj_id):
 
     # data_name = r'..\output_manual_recomputed_medians.csv'
     # data_name = r'..\output_dbscan_medians.csv'
-    data_name = r'..\output_dbscan_medians_val.csv'
+    # data_name = r'..\output_dbscan_medians_val.csv'
+    data_name = r'..\output_dbscan_medians_test.csv'
     data = pd.read_csv(os.path.join(subj_root, data_name), sep=',')
 
     subj_data = data[data.subj_id == int(subj_id)]
@@ -78,18 +82,19 @@ def get_fix_bounds_stim_pos(root, subj_id):
 
     return fix_bounds, stim_pos
 
-def make_calib_grid_specific_data(data_id='randn', calib_grid=29, parser_mode='gt_vog'):
+def make_calib_grid_specific_data(data_id='randn', calib_grid=29, parser_mode='gt_vog', skip_worst=False):
     def f(root, subj_id, arch, train_subjs):
         return get_specific_data(
             root, subj_id, arch,
             train_subjs=train_subjs,
             data_id=data_id,
             calib_grid=calib_grid,
-            parser_mode=parser_mode
+            parser_mode=parser_mode,
+            skip_worst=skip_worst
         )
     return f
 
-def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', calib_grid=29, parser_mode=None):
+def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', calib_grid=29, parser_mode=None, skip_worst=False):
     # print('DEBUG, getting data for:', subj_id, train_subjs, data_id, calib_grid, manual)
     print('DEBUG, getting data for:', subj_id, parser_mode)
 
@@ -109,6 +114,8 @@ def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', ca
         data = longest_fix_uncalibrated_psog(data, stim_pos)
     elif parser_mode == 'temporal_stable_regions':
         data = temporal_with_stable_regions(data, stim_pos)
+    elif parser_mode == 'temporal_longest_stable_region':
+        data = temporal_longest_stable_region(data, stim_pos)
     else:
         print('ERROR: Unknown parsing mode:', parser_mode)
         exit()
@@ -120,7 +127,10 @@ def get_specific_data(root, subj_id, arch, train_subjs=None, data_id='randn', ca
     subj_root = os.path.join(root, subj_dir)
     data.to_csv(os.path.join(subj_root, 'DATA_' + parser_mode + '.csv'), sep='\t', index=False)
 
-    return get_train_calib_data(data, arch)
+    return get_train_calib_data(data, arch, skip_worst=skip_worst)
+
+def temporal_longest_stable_region(data, stim_pos, BEG_DEL=735, END_DEL=-155):
+    return longest_fix_uncalibrated_psog(data, stim_pos, BEG_DEL=BEG_DEL, END_DEL=END_DEL)
 
 def temporal_with_stable_regions(data, stim_pos, BEG_DEL=735, END_DEL=-155):
     stim_pos = filter_by_phase(stim_pos)
@@ -150,7 +160,7 @@ def all_fix_uncalibrated_psog(data, stim_pos):
 
     return data
 
-def longest_fix_uncalibrated_psog(data, stim_pos):
+def longest_fix_uncalibrated_psog(data, stim_pos, BEG_DEL=0, END_DEL=0):
     def get_stim_fix_mask(data, beg, end):
         return (data.time >= beg) & \
             (data.time <= end) & \
@@ -164,12 +174,13 @@ def longest_fix_uncalibrated_psog(data, stim_pos):
         return best
 
     stim_pos = filter_by_phase(stim_pos)
+    print('DEBUG:', stim_pos)
 
     data['calib_fix'] = 0
     for i in range(len(stim_pos) - 1):
     # for i in range(1):
-        beg = stim_pos[i][0]
-        end = stim_pos[i + 1][0]
+        beg = stim_pos[i][0] + BEG_DEL
+        end = stim_pos[i + 1][0] + END_DEL
 
         all_stim_fix_mask = get_stim_fix_mask(data, beg, end)
 
@@ -209,7 +220,8 @@ def blind_temporal(data, stim_pos, BEG_DEL=735, END_DEL=-155):
     return data
 
 def ground_truth_vog(data, fix_bounds):
-    fix_bounds = filter_by_phase(fix_bounds)
+    fix_bounds = filter_by_phase(fix_bounds)[:-1]
+    print('fix_boudns:', fix_bounds)
 
     data['calib_fix'] = 0
     for fix in fix_bounds:
@@ -239,9 +251,9 @@ def get_fix_bounds_from_timestamps(ts):
         bounds.append((b, e))
     return bounds
 
-def get_train_calib_data(data, arch):
+def get_train_calib_data(data, arch, skip_worst=False):
     X_train, X_val, X_test, y_train, y_val, y_test = \
-        split_data_train_val_calib_test(data, with_time=True)
+        split_data_train_val_calib_test(data, with_time=True, skip_worst=skip_worst)
 
     # fixation_timestamps_sanity_check(X_train[:, 0])
     X_train = X_train[:, 1:]
@@ -261,7 +273,7 @@ def get_train_calib_data(data, arch):
     # useful for debugging purposes
     # return X_train, X_test, X_test, y_train, y_test, y_test
 
-def split_data_train_val_calib_test(data, with_shifts=False, with_time=False):
+def get_non_compliant_points(data):
     def compliance_report(i, y_gt, y_stim):
         print(
             'Target {:-3d}: ({:-6.2f}, {:-6.2f})'.format(i, *y_stim[0]),
@@ -273,6 +285,69 @@ def split_data_train_val_calib_test(data, with_shifts=False, with_time=False):
             )
         )
 
+    train_val_mask = (data.calib_fix == 1) | (data.calib_fix == 2)
+    fix_ts = data.loc[train_val_mask, 'time'].values
+    train_val_fix = get_fix_bounds_from_timestamps(fix_ts)
+    print('train_val_fix:', train_val_fix)
+
+    compliance_metrics = []
+    comp_dict = {}
+    for i, fix in enumerate(train_val_fix):
+        beg, end = fix
+        time_mask = (data.time >= beg) & (data.time <= end)
+
+        stim_pos = data[data.time == beg][['stim_pos_x', 'stim_pos_y']].values
+        stim_len = data.loc[time_mask].shape[0]
+
+        y_pred = data.loc[time_mask][['pos_x', 'pos_y']].values
+        y_gt = np.tile(stim_pos, (stim_len, 1))
+
+        calib_fix = data[data.time == beg].calib_fix.values[0] == 1
+        border_fix = np.abs(np.abs(stim_pos[0][0]) - 20.0) < 0.1 and \
+            np.abs(np.abs(stim_pos[0][1]) - 16.2) < 0.1
+        if calib_fix:
+            tar_id = '({:-6.2f}; {:-6.2f})'.format(*y_gt[0])
+            tar_acc = calc_acc(y_pred, y_gt)
+
+            compliance_metrics.append((tar_acc, i))
+
+            if tar_id not in comp_dict:
+                comp_dict[tar_id] = []
+            comp_dict[tar_id].append((tar_acc, i))
+
+            compliance_report(i, y_pred, y_gt)
+
+    comp_dict_means = {}
+    for k, v in comp_dict.items():
+        tar_mean_acc, tar_ind = np.mean(np.array(v), axis=0)
+        comp_dict_means[k] = tar_mean_acc
+    comp_dict = comp_dict_means
+
+    ## save compliance to the file
+    # comp_path = os.path.join('.', 'all_subj_comp.csv')
+    # if not os.path.exists(comp_path):
+    #     comp_data = pd.DataFrame(columns=comp_dict.keys())
+    #     comp_data.to_csv(comp_path, sep='\t', index=False)
+
+    # comp_data = pd.read_csv(comp_path, sep='\t')
+    # comp_data = comp_data.append(comp_dict, ignore_index=True)
+    # comp_data.to_csv(comp_path, sep='\t', index=False)
+
+    compliance_metrics = sorted(compliance_metrics)
+    print('DEBUG:', compliance_metrics)
+    skip_inds = []
+
+    compliance_metrics = np.array(compliance_metrics)
+    compliance_metrics[:, 0] = RobustScaler().fit_transform(
+        np.array(compliance_metrics)[:, 0].reshape(-1, 1)
+    ).reshape(1, -1)
+    worst_mask = np.abs(compliance_metrics[:, 0]) > 2.75
+    skip_inds = compliance_metrics[worst_mask][:, 1]
+    
+    return skip_inds
+
+
+def split_data_train_val_calib_test(data, with_shifts=False, with_time=False, skip_worst=False):
     X_cols = (['time'] if with_time else []) + \
         PSOG().get_names() + \
         (['sh_hor', 'sh_ver'] if with_shifts else [])
@@ -293,6 +368,8 @@ def split_data_train_val_calib_test(data, with_shifts=False, with_time=False):
     X_val = []
     y_val = []
 
+    skip_inds = get_non_compliant_points(data) if skip_worst else []
+
     for i, fix in enumerate(train_val_fix):
         beg, end = fix
         time_mask = (data.time >= beg) & (data.time <= end)
@@ -303,7 +380,9 @@ def split_data_train_val_calib_test(data, with_shifts=False, with_time=False):
         X_temp = data.loc[time_mask, X_cols].values
         y_temp = np.tile(stim_pos, (stim_len, 1))
 
-        # compliance_report(i, data.loc[time_mask][['pos_x', 'pos_y']].values, y_temp)
+        if i in skip_inds:
+            print('Skip target:', y_temp[0])
+            continue
 
         if data[data.time == beg].calib_fix.values[0] == 2:
             X_val.extend(X_temp)
@@ -406,9 +485,11 @@ if __name__ == '__main__':
     root = sys.argv[1]
     subj_id = str(sys.argv[2])
 
-    f = make_calib_grid_specific_data(parser_mode='all_fix_uncalib_psog')
+    f = make_calib_grid_specific_data(parser_mode='gt_vog', skip_worst=True)
 
-    X_train, X_val, X_test, y_train, y_val, y_test = f(root, subj_id, 'mlp', train_subjs=None)
+    for i in range(1, 1 + 1):
+        subj_id = str(i)
+        X_train, X_val, X_test, y_train, y_val, y_test = f(root, subj_id, 'mlp', train_subjs=None)
 
     print(X_train.shape)
     print(X_val.shape)
