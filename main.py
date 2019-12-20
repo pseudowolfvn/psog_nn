@@ -7,13 +7,14 @@ from preproc.shift_crop import shift_and_crop
 from preproc.restore_missed import restore_missed_samples
 from preproc.head_mov_tracker import track_markers
 from preproc.psog import simulate_psog
+from ml.calib_analysis import evaluate_calib
+from ml.frameworks_comp import compare_frameworks
 from ml.general_analysis import evaluate_study
 from ml.grid_search import grid_search
 from ml.time_analysis import evaluate_time
-from ml.calib_analysis import evaluate_calib
-from plots.boxplots_per_subject import plot_boxplots
-from plots.error_bars import plot_error_bars
-from plots.samples_distrib import draw_samples
+#from plots.boxplots_per_subject import plot_boxplots
+#from plots.error_bars import plot_error_bars
+#from plots.samples_distrib import draw_samples
 from utils.utils import none_if_empty, list_if_not
 
 
@@ -109,6 +110,11 @@ def build_subparsers():
             Run on the whole dataset, if no subjects specified'''
     )
 
+    add_subjs_argument(
+        ml, '--subjs',
+        '''restrict the corresponding analysis from the whole dataset
+        to the specified list of subjects'''
+    )
     ml.add_argument(
         '--grid_search', default=False, action='store_true',
         help='''run the grid-search to find the best architecture parameters.
@@ -131,6 +137,24 @@ def build_subparsers():
         help='''basic analysis of using calibration-like distribution
             of training set for 'fine-tune' approach for CNN architecture
             of both setups for subjects "6" and "8"'''
+    )
+    ml.add_argument(
+        '--compare', default=False, action='store_true',
+        help='''compare testing performance and training time of
+        frameworks from available implementations'''
+    )
+    frameworks = ['torch', 'chainer', 'keras']
+    ml.add_argument(
+        '--frameworks', default=frameworks, nargs='*', choices=frameworks,
+        help='''restrict frameworks comparison to the specified list.
+        If not specified, compare all'''
+    )
+    batch_size_default = 2000
+    ml.add_argument(
+        '--batch_size', default=batch_size_default, nargs='*', type=int,
+        help='''run the corresponding analysis for every batch size
+        from the specified list. If not specified, run once with
+        the default batch size of ''' + str(batch_size_default)
     )
     add_archs_argument(ml)
     add_setups_argument(ml)
@@ -174,6 +198,8 @@ def run_cli():
         args.arch = list_if_not(args.arch)
     if 'setup' in args:
         args.setup = list_if_not(args.setup)
+    if 'batch_size' in args:
+        args.batch_size = list_if_not(args.batch_size)
 
     if args.cmd == 'preproc':
         if args.missed is not None:
@@ -189,6 +215,7 @@ def run_cli():
             subj_ids = none_if_empty(args.psog)
             simulate_psog(dataset_root, subj_ids)
     elif args.cmd == 'ml':
+        subj_ids = none_if_empty(args.subjs)
         if args.grid_search:
             grid_search(dataset_root, args.arch, args.setup, redo=False)
         if args.evaluate:
@@ -197,6 +224,12 @@ def run_cli():
             evaluate_time(dataset_root, ['cnn'], ['lp'], redo=False)
         if args.calib_like_train:
             evaluate_calib(dataset_root, ['6', '8'])
+        print('COMPARING', args.frameworks)
+        if args.compare:
+            compare_frameworks(
+                dataset_root, args.frameworks,
+                args.batch_size, subj_ids, REPS=1
+            )
     elif args.cmd == 'plot':
         if args.boxplots:
             plot_boxplots(results_root, args.arch, args.setup)

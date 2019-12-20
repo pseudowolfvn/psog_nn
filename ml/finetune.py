@@ -31,7 +31,6 @@ def train_and_save(root, train_subjs, test_subjs, params, load=False,
     data_source = default_source_if_none(data_source)
 
     model_path = get_model_path(train_subjs, params)
-    model = build_model(params)
 
     if load and os.path.exists(model_path):
         print('Model', model_path, 'already exists, skip')
@@ -40,10 +39,12 @@ def train_and_save(root, train_subjs, test_subjs, params, load=False,
     X_train, X_val, X_test, y_train, y_val, y_test = \
         data_source(root, train_subjs, test_subjs, get_arch(params))
 
-    model.train(
-        X_train, y_train, X_val, y_val,
-        **learning_config
-    )
+    model.train(X_train, y_train, X_val, y_val, batch_size=2000)
+    dim = None if len(X_train.shape) > 2 else X_train.shape[-1]
+    learning_config['batch_size'] = 2000
+    model = build_model(params, in_dim=dim, learning_config=learning_config)
+
+    model.fit(X_train, y_train, X_val, y_val)
     model.save_weights(model_path)
     print('Model', model_path, ' saved')
 
@@ -72,7 +73,7 @@ def load_and_finetune(root, train_subjs, subj, params,
         A tuple with spatial accuracies on train set, test set
             and time spent for training.
     """
-    learning_config = default_config_if_none(learning_config)
+    config = default_config_if_none(learning_config)
     data_source = default_source_if_none(data_source)
 
     arch = get_arch(params)
@@ -80,7 +81,8 @@ def load_and_finetune(root, train_subjs, subj, params,
     X_train, X_val, X_test, y_train, y_val, y_test = \
         data_source(root, subj, arch, train_subjs)
 
-    model = build_model(params)
+    dim = None if len(X_train.shape) > 2 else X_train.shape[-1]
+    model = build_model(params, in_dim=dim, learning_config=config)
     model_path = get_model_path(train_subjs, params)
     model.load_weights(model_path)
 
@@ -89,10 +91,7 @@ def load_and_finetune(root, train_subjs, subj, params,
 
     print('Model ' + model_path + ' loaded')
 
-    fit_time = model.train(
-        X_train, y_train, X_val, y_val,
-        **learning_config
-    )
+    fit_time = model.fit(X_train, y_train, X_val, y_val)
 
     print('Partial fit completed')
     train_acc, test_acc, _ = model.report_acc(X_train, y_train, X_test, y_test)

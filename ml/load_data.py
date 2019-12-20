@@ -6,14 +6,16 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 import pandas as pd
+from scipy.io import loadmat
 from sklearn.model_selection import train_test_split
 
 from ml.utils import filter_outliers, normalize
 from preproc.psog import PSOG
-from utils.utils import list_if_not, deg_to_pix
+from utils.utils import list_if_not, deg_to_pix, find_filename, extract_subj_id_from_dir
 
 
-def get_subj_data(subj_root, sensor=None, with_shifts=False):
+def get_subj_data(subj_root, sensor=None, with_shifts=False, with_time=False, data_suffix='randn_v2'):
+    # TODO: update comment for new parameters
     """Get data for provided subject.
 
     Args:
@@ -27,20 +29,27 @@ def get_subj_data(subj_root, sensor=None, with_shifts=False):
     if sensor is None:
         sensor = PSOG()
 
-    data_name = Path(subj_root).name + '_' + sensor.arch + '.csv'
+    data_name = find_filename(subj_root, '', beg='Record', end='_' + data_suffix + '.csv')
     data_path = os.path.join(subj_root, data_name)
     data = pd.read_csv(data_path, sep='\t')
 
-    data = filter_outliers(data)
+    matlab_name = find_filename(subj_root, '', beg='Recording_', end='Velocity.mat')
+    matlab_path = os.path.join(subj_root, matlab_name)
+    matlab_data = loadmat(matlab_path)
 
-    X_cols = sensor.get_names() + (['sh_hor', 'sh_ver'] if with_shifts else [])
-    print('DEBUG: ', X_cols)
+    data = filter_outliers(data, matlab_data)
+
+    X_cols = (['time'] if with_time else []) + \
+        sensor.get_names() + \
+        (['sh_hor', 'sh_ver'] if with_shifts else [])
+
     X = data[X_cols].values
     y = data[['pos_x', 'pos_y']].values
 
     return X, y
 
-def get_data(root, subj_ids=None, with_shifts=False):
+def get_data(root, subj_ids=None, with_shifts=False, with_time=False, data_suffix='randn_v2'):
+    # TODO: update comment for new parameters
     """Get data for the provided list of subjects.
 
     Args:
@@ -59,20 +68,20 @@ def get_data(root, subj_ids=None, with_shifts=False):
 
     X_data = []
     y_data = []
-    shapes = []
     sensor = PSOG()
     for dirname in os.listdir(root):
-        if subj_ids is not None and dirname not in subj_ids:
+        if subj_ids is not None and \
+                extract_subj_id_from_dir(dirname) not in subj_ids:
             continue
         subj_root = os.path.join(root, dirname)
-        X, y = get_subj_data(subj_root, sensor, with_shifts=with_shifts)
-        shapes.append(X.shape[0])
+        X, y = get_subj_data(
+            subj_root, sensor,
+            with_shifts=with_shifts, with_time=with_time,
+            data_suffix=data_suffix
+        )
+
         X_data.extend(X)
         y_data.extend(y)
-    print(shapes)
-    print(np.mean(shapes))
-    print('-'*80)
-    exit()
 
     return np.array(X_data), np.array(y_data)
 
@@ -88,9 +97,9 @@ def reshape_into_grid(X_train, X_val, X_test):
     Returns:
         A tuple with reshaped training, validation and test sets.
     """
-    X_train = X_train.reshape((X_train.shape[0], 3, 5, 1))
-    X_val = X_val.reshape((X_val.shape[0], 3, 5, 1))
-    X_test = X_test.reshape((X_test.shape[0], 3, 5, 1))
+    X_train = X_train.reshape((X_train.shape[0], 1, 3, 5))
+    X_val = X_val.reshape((X_val.shape[0], 1, 3, 5))
+    X_test = X_test.reshape((X_test.shape[0], 1, 3, 5))
     return X_train, X_val, X_test
 
 # TODO: choose a better name
@@ -406,3 +415,6 @@ def find_train_test_split(subj):
         if subj in split:
             return split_test_from_all(split)
     return None
+
+def get_loo_subjs_split():
+    return [[str(i)] for i in range(1, 41)]

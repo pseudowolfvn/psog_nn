@@ -1,5 +1,7 @@
 """ 'From scratch' approach related training.
 """
+import gc
+
 from ml.load_data import get_specific_data, get_calib_like_data, \
     default_source_if_none
 from ml.model import build_model
@@ -8,7 +10,7 @@ from utils.utils import get_arch
 
 
 def train_from_scratch(root, subj, params,
-        learning_config=None, data_source=None):
+        learning_config=None, data_source=None, impl='torch'):
     """Train the neural network model 'from scratch'
         for provided specific subject.
 
@@ -27,21 +29,21 @@ def train_from_scratch(root, subj, params,
         A tuple with spatial accuracies on train set, test set
             and time spent for training.
     """
-    learning_config = default_config_if_none(learning_config)
+    config = default_config_if_none(learning_config)
     data_source = default_source_if_none(data_source)
-
+    print('DEBUG: ', subj)
     X_train, X_val, X_test, y_train, y_val, y_test = \
         data_source(root, subj, get_arch(params))
 
-    model = build_model(params)
-    fit_time = model.train(
-        X_train, y_train, X_val, y_val,
-        **learning_config
-    )
+    dim = None if len(X_train.shape) > 2 else X_train.shape[-1]
+    print('DEBUG: ', X_train.shape)
+    model = build_model(params, in_dim=dim, learning_config=config, impl=impl)
+    fit_time = model.fit(X_train, y_train, X_val, y_val)
 
     print('Model ' + get_model_path(subj, params) + ' trained from scratch')
     train_acc, test_acc, _ = model.report_acc(X_train, y_train, X_test, y_test)
     print('Train acc: ', train_acc)
     print('Test acc: ', test_acc)
+    print('Fit time: ', fit_time)
 
     return train_acc, test_acc, fit_time

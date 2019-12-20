@@ -116,11 +116,11 @@ def grid_search_arch_setup(
                         + str([D]*L_conv) + ', ' + str([N]*L_fc), file=log
                     )
 
-                    model = build_model((L_conv, D, L_fc, N))
-                    fit_time = model.train(
-                        X_train, y_train, X_val, y_val,
-                        batch_size=2000
+                    model = build_model(
+                        (L_conv, D, L_fc, N),
+                        in_dim=n_pca, learning_config={'batch_size': 2000}
                     )
+                    fit_time = model.fit(X_train, y_train, X_val, y_val)
 
                     train_acc, test_acc, val_acc = model.report_acc(
                         X_train, y_train,
