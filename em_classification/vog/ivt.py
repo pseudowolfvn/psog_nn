@@ -7,29 +7,45 @@ from sklearn.cluster import DBSCAN
 from em_classification.calc_utils import calc_median, enrich_data
 
 class IVT:
-    def __init__(self, gaze_data, stim_data, EPS=0.85):
+    def __init__(self, gaze_data, stim_data, EPS=0.85, verbose=False):
         stim_pos = stim_data[:, -2:]
         stim_timestamps = stim_data[:, 0]
 
-        rad_data = enrich_data(gaze_data, stim_data)
-        self.data = rad_data[['Timestamp', 'GazePointXLeft', 'GazePointYLeft', 'rp', 'diff_rad', 'drv', 'diff_x', 'diff_y']].copy()
-        rad_data.to_csv('data_log.csv', sep='\t')
-        self.timestamps = np.array(stim_timestamps)
-        self.VT = self.get_adaptive_vt()
-        self.fixations = self._calc_fix_bounds()
+        self.data = gaze_data.copy()
+        self.data = enrich_data(self.data, stim_data)
+        mask = [
+            'time', 'pos_x', 'pos_y', 'diff_x', 'diff_y',
+            'pos_rad', 'diff_rad', 'rv'
+        ]
+        self.data = self.data[mask]
+
         self.EPS = EPS
+        self.VT_PERCENT = 85
+        self.VT = self.get_adaptive_vt()
+        # fixations that are shorter than 50ms (6 samples) will be discarded
+        self.SMALL_FIX_TH = 2 * (8 + 8 + 9)
+
+        self.data.to_csv('data_log.csv', sep='\t')
+        self.timestamps = np.array(stim_timestamps)
+        self.fixations = self._calc_fix_bounds()
+
+        self.verbose = verbose
+
+    def log_to_console(self, *args, **kargs):
+        if self.verbose:
+            print(*args, **kargs)
 
     def get_adaptive_vt(self):
-        return np.percentile(self.data['drv'], 85)
+        return np.percentile(self.data['rv'], self.VT_PERCENT)
 
-    def get_fix_medians(self, stim_fix, hor_field='GazePointXLeft', ver_field='GazePointYLeft'):
+    def get_fix_medians(self, stim_fix, hor_label='pos_x', ver_label='pos_y'):
         fix_data = self._get_fix_data_slice(stim_fix)
         fix_medians = []
         for fix in stim_fix:
             beg, end = fix
-            slice_data = fix_data[(fix_data.Timestamp >= beg) & (fix_data.Timestamp <= end)]
-            hor_slice = slice_data[hor_field]
-            ver_slice = slice_data[ver_field]
+            slice_data = fix_data[(fix_data.time >= beg) & (fix_data.time <= end)]
+            hor_slice = slice_data[hor_label]
+            ver_slice = slice_data[ver_label]
             hor_spread = hor_slice.median()
             ver_spread = ver_slice.median()
             fix_medians.append([hor_spread, ver_spread])
@@ -49,21 +65,10 @@ class IVT:
         next_stim_fix = self._extract_stim_fix(all_fix, self.timestamps[0], self.timestamps[1])
         T = len(self.timestamps)
         for i in range(1, T):
-            print(i)
+            self.log_to_console('Target #', i)
             stim_fix = next_stim_fix
 
-            merges_count = 0
-            changed = True
-            while changed:
-                changed = False
-                # print('BEFORE:', stim_fix)
-                prev_fix_num = len(stim_fix)
-                stim_fix = self._merge_close_fix(stim_fix)
-                merges_count += 1
-                changed = len(stim_fix) != prev_fix_num
-                if merges_count == 3:
-                    exit()
-                # print('AFTER:', stim_fix)
+            stim_fix = self._merge_close_fix(stim_fix)
 
             if i < T - 1:
                 beg_next_ts = self.timestamps[i]
@@ -90,9 +95,6 @@ class IVT:
             calib_fix.append(fix)
             all_merged_fix.extend(stim_fix)
 
-        # calib_fix = self._discard_small_fixations(calib_fix)
-        # all_merged_fix = self._discard_small_fixations(all_merged_fix)
-
         return calib_fix, all_merged_fix
 
     def _discard_small_fixations(self, fixations):
@@ -100,7 +102,7 @@ class IVT:
         for fix in fixations:
             beg, end = fix
             # discard fixation if it's less than 50ms (6 samples)
-            if end - beg < 2 * (8 + 8 + 9):
+            if end - beg < self.SMALL_FIX_TH:
                 continue
             filtered_fixations.append(fix)
         return filtered_fixations
@@ -111,10 +113,10 @@ class IVT:
         for fix in stim_fix:
             beg, end = fix
             slice_data = fix_data[
-                (fix_data.Timestamp >= beg) & (fix_data.Timestamp <= end)
+                (fix_data.time >= beg) & (fix_data.time <= end)
             ]
-            hor_slice = slice_data['GazePointXLeft']
-            ver_slice = slice_data['GazePointYLeft']
+            hor_slice = slice_data['pos_x']
+            ver_slice = slice_data['pos_y']
             print(fix, hor_slice.median(), ver_slice.median())
 
     def _extract_stim_fix(self, all_fix, stim_beg_ts, stim_end_ts):
@@ -138,7 +140,7 @@ class IVT:
             hor_med = calc_median(self.data, *fix, 'diff_x', take_abs=True)
             ver_med = calc_median(self.data, *fix, 'diff_y', take_abs=True)
             val = max(hor_med, ver_med) / (10 * (fix[1] - fix[0]))
-            print(fix, val)
+            self.log_to_console(fix, val)
             if val < best_val:
                 best_fix = fix
                 best_val = val
@@ -169,12 +171,12 @@ class IVT:
 
     #     return stim_fix[best_ind]
 
-    def _merge_close_fix(self, stim_fix, hor_field='GazePointXLeft', ver_field='GazePointYLeft'):
+    def _merge_close_fix(self, stim_fix):
         stim_fix = list(stim_fix)
 
         stim_fix_medians = self.get_fix_medians(stim_fix)
         cluster_labels = self.cluster_to_merge(stim_fix_medians)
-        print(cluster_labels)
+        self.log_to_console(cluster_labels)
 
         i = 0
         label_ind = 0
@@ -203,7 +205,7 @@ class IVT:
         return stim_fix
 
     def _merge_all_from_first_to_last(self, stim_fix, first, last):
-        print('MERGE, from:', stim_fix[first], 'to:', stim_fix[last])
+        self.log_to_console('MERGE, from:', stim_fix[first], 'to:', stim_fix[last])
         beg = stim_fix[first][0]
         end = stim_fix[last][1]
         # delete previous and current fixations that are merged
@@ -214,22 +216,22 @@ class IVT:
         return stim_fix
 
     def _calc_fix_bounds(self):
-        self.data['mask'] = np.array(self.data['drv'] < self.VT, dtype=np.int)
+        self.data['mask'] = np.array(self.data['rv'] < self.VT, dtype=np.int)
         fix_bounds = []
 
         prev_row = self.data.iloc[0]
-        fix_beg = prev_row['Timestamp'] if prev_row['mask'] == 1 else None
+        fix_beg = prev_row['time'] if prev_row['mask'] == 1 else None
 
         for _, row in self.data.iloc[1:].iterrows():
             if prev_row['mask'] == 1 and row['mask'] == 0:
-                fix_end = prev_row['Timestamp']
+                fix_end = prev_row['time']
                 fix_bounds.append((fix_beg, fix_end))
             if prev_row['mask'] == 0 and row['mask'] == 1:
-                fix_beg = row['Timestamp']
+                fix_beg = row['time']
             prev_row = row
         
         if prev_row['mask'] == 1:
-            fix_end = prev_row['Timestamp']
+            fix_end = prev_row['time']
             fix_bounds.append((fix_beg, fix_end))
 
         return fix_bounds
@@ -241,7 +243,7 @@ class IVT:
         for fix in all_fix:
             beg, end = fix
             slice_data = self.data[
-                (self.data.Timestamp >= beg) & (self.data.Timestamp <= end)
+                (self.data.time >= beg) & (self.data.time <= end)
             ]
             fix_data = pd.concat([fix_data, slice_data], ignore_index=True)
 

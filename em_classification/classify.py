@@ -7,32 +7,26 @@ from pandas.util import hash_pandas_object
 
 from em_classification.calc_utils import enrich_data
 from em_classification.data_utils import convert_to_window, get_model_path, \
-    get_ivt_gaze_subj_data, get_subj_data, scale_data, to_channel_first
+    get_subj_data, scale_data, to_channel_first
 from em_classification.vog.ivt import IVT
 from em_classification.psog.nn import Model1DCNN
-from ml.calib_data import get_stim_pos_subj_data
+from ml.calib_data import get_stim_pos_subj_data, get_subj_calib_data
 from preproc.psog import PSOG
 from utils.utils import find_filename, find_record_dir
 
 
 def classify_vog(root, subj_id, data_id):
-    # IVT implementation still requires the old
-    # data format: unprocessed .tsv from eye-tracker
-    # TODO: rewrite IVT to comply with the
-    # data format: processed .csv with PSOG signal
-    ivt_gaze_data = get_ivt_gaze_subj_data(root, subj_id)
+    gaze_data = get_subj_data(root, subj_id, data_id, include_outliers=False)
     stim_data = get_stim_pos_subj_data(root, subj_id)
 
-    data = enrich_data(ivt_gaze_data, stim_data)
-
-    ivt = IVT(data, stim_data, EPS=0.4)
+    ivt = IVT(gaze_data, stim_data, EPS=0.4)
     _, all_merged_fix = ivt.get_calib_fixations()
 
     # get_subj_calib_data from ml.calib_data now requires
     # data in the format that already has classified data
     # TODO: rewrite to use coherent data format
     # so the get_subj_calib_data from ml.calib_data can be reused
-    data = get_subj_data(root, subj_id, data_id)
+    data = get_subj_data(root, subj_id, data_id, include_outliers=True)
 
     data['fixation'] = 0
     first_fix_beg = all_merged_fix[0][0]
@@ -77,8 +71,8 @@ def classify_psog(data):
     pad = np.repeat(-1, W)
     y_pred = np.concatenate((pad, y_pred, pad))
 
-    data['prediction'] = -1
-    data.loc[data.fixation != -1, 'prediction'] = y_pred
+    data['prediction'] = y_pred
+    # data.loc[data.fixation != -1, 'prediction'] = y_pred
 
     return data
 

@@ -2,23 +2,15 @@ import os
 
 import numpy as np
 import pandas as pd
+from scipy.io import loadmat
 from sklearn.preprocessing import RobustScaler
 
+from ml.utils import filter_outliers
 from utils.utils import find_filename, find_record_dir
 
-
-def get_ivt_gaze_subj_data(root, subj_id):
-    subj_dir = find_record_dir(root, subj_id)
-    subj_root = os.path.join(root, subj_dir)
-
-    data_name = find_filename(subj_root, 'Signal.tsv', beg='DOT', end='.tsv')
-
-    data = pd.read_csv(os.path.join(subj_root, data_name), sep='\t')
-
-    mask = ['Timestamp', 'GazePointXLeft', 'GazePointYLeft']
-    return data[data.ValidityLeft != 4][mask]
-
-def get_subj_data(root, subj_id, data_id):
+# TODO: move the function to ml.load_data module
+# and adapt related functions to use it
+def get_subj_data(root, subj_id, data_id, include_outliers=True):
     subj_dir = find_record_dir(root, subj_id)
     subj_root = os.path.join(root, subj_dir)
 
@@ -30,6 +22,20 @@ def get_subj_data(root, subj_id, data_id):
     print('Data filename:', data_name)
     data_path = os.path.join(subj_root, data_name)
     data = pd.read_csv(data_path, sep='\t')
+
+    if not include_outliers:
+        # the incomplete outlier detection is used for
+        # backward compatibility with old results of IVT algorithm
+        data = data[data.val != 4]
+
+        # TODO: check that complete outliers detection gives
+        # reasonable results by visual inspection of the difference
+        # it makes and switch to using it
+        # matlab_name = find_filename(subj_root, '', beg='Recording_', end='Velocity.mat')
+        # matlab_path = os.path.join(subj_root, matlab_name)
+        # matlab_data = loadmat(matlab_path)
+
+        # data = filter_outliers(data, matlab_data)
 
     return data
 
