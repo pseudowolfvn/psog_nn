@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from utils.gens import CropImgSampleGenerator
-from utils.utils import calc_pad_size, do_sufficient_pad
+from utils.utils import calc_pad_size, do_sufficient_pad, find_record_dir
 
 # this part of code is taken from Raimondas Zemblys
 def gauss(w, sigma):
@@ -167,7 +167,7 @@ def simulate_subj_psog(subj_root):
     for i, (img, _) in enumerate(img_samples):
         psog_outputs[i] = psog.simulate_output(img)
 
-    data_name = Path(subj_root).name + '_' + psog.arch + '_noshift.csv'
+    data_name = Path(subj_root).name + '_' + psog.arch + '.csv'
     img_samples.get_data().assign(
         **dict(
             zip(psog.get_names(), psog_outputs.T)
@@ -187,10 +187,15 @@ def simulate_psog(dataset_root, subj_ids=None):
         subj_ids: A list with subjects ids to simulate for if provided,
             otherwise simulate for the whole dataset.
     """
+    subj_dirs = []
+    if subj_ids is not None:
+        subj_dirs = [
+            find_record_dir(dataset_root, subj_id) for subj_id in subj_ids
+        ]
+
     for dirname in os.listdir(dataset_root):
-        if subj_ids is not None and dirname not in subj_ids:
-            continue
-        if not dirname.startswith('Record'):
+        if (subj_ids is not None and dirname not in subj_dirs) or \
+                not dirname.startswith('Record'):
             print('Skipping', dirname, '...')
             continue
 

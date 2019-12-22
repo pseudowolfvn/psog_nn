@@ -11,7 +11,8 @@ from skimage.io import imread, imsave
 
 from preproc.utils import get_default_shifts, get_randn_shifts, get_no_shifts
 from utils.gens import ImgPathGenerator
-from utils.utils import repeat_up_to, calc_pad_size, do_sufficient_pad
+from utils.utils import repeat_up_to, calc_pad_size, \
+    do_sufficient_pad, find_record_dir
 
 
 def add_sensor_shifts(data, shifts):
@@ -215,10 +216,15 @@ def shift_and_crop(dataset_root, subj_ids=None):
         subj_ids: A list with subjects ids to shift and crop for if provided,
             otherwise shift and crop for the whole dataset.
     """
+    subj_dirs = []
+    if subj_ids is not None:
+        subj_dirs = [
+            find_record_dir(dataset_root, subj_id) for subj_id in subj_ids
+        ]
+
     for dirname in os.listdir(dataset_root):
-        if subj_ids is not None and dirname not in subj_ids:
-            continue
-        if not dirname.startswith('Record'):
+        if (subj_ids is not None and dirname not in subj_dirs) or \
+                not dirname.startswith('Record'):
             print('Skipping', dirname, '...')
             continue
 

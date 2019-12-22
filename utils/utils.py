@@ -143,6 +143,17 @@ def find_filename(root, default_name, beg=None, end=None):
     return data_name
 
 def extract_subj_id_from_dir(subj_dir):
+    """
+    Extract subject's id from the directory name
+        if dataset is following the format of data
+        collected in May of 2019: 'Journal_May2019'
+
+    Args:
+        subj_dir: A string with subject's directory name.
+
+    Returns:
+        A string with subject's id.
+    """
     return subj_dir.split('_')[-1]
 
 def find_record_dir(root, id):
