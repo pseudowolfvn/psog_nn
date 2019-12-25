@@ -18,7 +18,6 @@ from tqdm import tqdm
 from utils.metrics import calc_acc
 from utils.utils import get_arch
 
-from ml.nadam_torch import Nadam
 from ml.utils import default_config_if_none
 
 class Model(nn.Module):
